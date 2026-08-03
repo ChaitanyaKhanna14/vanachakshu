@@ -212,6 +212,34 @@ class OpticalDetectionConfig(BaseModel):
         return max(1, round(self.min_clearing_ha / px_area_ha))
 
 
+class AlertConfig(BaseModel):
+    """Rules governing when a detection becomes an alert someone is told about."""
+
+    model_config = ConfigDict(frozen=True)
+
+    min_confirmations: int = Field(
+        default=2,
+        ge=1,
+        description=(
+            "Times a disturbance must be seen on separate passes before anyone is "
+            "notified. This is the single biggest false-positive filter available: "
+            "wet ground and thin haze look like clearing but recover by the next "
+            "pass, whereas cut forest stays cut. Costs one revisit of latency."
+        ),
+    )
+    dedup_radius_m: float = Field(
+        default=150.0,
+        gt=0.0,
+        description=(
+            "A detection within this distance of a known alert is treated as the "
+            "same event. Matching by distance rather than by snapping to a grid "
+            "is deliberate: grid cells have boundaries, and a clearing whose "
+            "centroid drifts across one would be announced a second time. "
+            "Too large and adjacent but distinct clearings merge into one."
+        ),
+    )
+
+
 class Settings(BaseSettings):
     """Environment-driven settings, primarily secrets and account identifiers.
 
