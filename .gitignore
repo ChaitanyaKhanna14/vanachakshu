@@ -1,0 +1,34 @@
+# --- Python build & cache artefacts -----------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# --- Tool caches -------------------------------------------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Credentials: NEVER commit these ----------------------------------------
+# Earth Engine service-account keys are plain JSON and look harmless. Committing
+# one to a public repo gives anyone your Google Cloud quota. Treat as a password.
+*.key.json
+service-account*.json
+credentials.json
+.env
+
+# --- Generated data ----------------------------------------------------------
+# Rasters and tiles are large and fully reproducible from code, so they are
+# rebuilt rather than versioned. Small AOI definitions in data/aoi/ ARE tracked
+# (see the negation below) because they are inputs, not outputs.
+data/interim/
+data/output/
+*.tif
+*.tiff
+*.pmtiles
+!data/aoi/*.geojson
