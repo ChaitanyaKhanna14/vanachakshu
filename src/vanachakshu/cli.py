@@ -7,13 +7,20 @@ testing beyond the exit codes.
 
 from __future__ import annotations
 
+from datetime import date
+from pathlib import Path
+from typing import Annotated
+
 import typer
 from rich.console import Console
 from rich.panel import Panel
 
 from vanachakshu import __version__
-from vanachakshu.config import WESTERN_GHATS_CLEAR_SEASON, YELLAPUR_TALUK
+from vanachakshu.alerts import AlertStore
+from vanachakshu.config import WESTERN_GHATS_CLEAR_SEASON, YELLAPUR_TALUK, AlertConfig
 from vanachakshu.diagnostics import all_passed, run_diagnostics
+from vanachakshu.gee import EarthEngineSetupError, initialize
+from vanachakshu.pipeline import run_cycle, store_path_for
 
 app = typer.Typer(
     name="vanachakshu",
@@ -74,6 +81,70 @@ def doctor() -> None:
 
     console.print("[bold red]Setup is not yet working.[/bold red]\n")
     raise typer.Exit(1)
+
+
+@app.command()
+def run(
+    baseline: Annotated[int, typer.Option(help="Earlier year to compare from.")],
+    recent: Annotated[int, typer.Option(help="Later year to compare to.")],
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Detect and report without writing the alert store. "
+            "Use when trying a threshold: confirmation state is not recoverable "
+            "once an alert has been marked announced.",
+        ),
+    ] = False,
+    store_dir: Annotated[
+        Path | None,
+        typer.Option(help="Directory holding alert stores. Defaults to data/alerts."),
+    ] = None,
+) -> None:
+    """Run one detection cycle and record any newly confirmed alerts.
+
+    Exits non-zero if Earth Engine is not usable, so the scheduled job fails
+    loudly rather than silently reporting nothing found.
+    """
+    aoi = YELLAPUR_TALUK
+    today = date.today()
+
+    try:
+        initialize()
+    except EarthEngineSetupError as exc:
+        console.print("[bold red]Earth Engine is not usable.[/bold red]")
+        console.print(Panel(str(exc), border_style="yellow"))
+        raise typer.Exit(1) from exc
+
+    store = AlertStore(store_path_for(aoi, store_dir), AlertConfig())
+
+    console.print(f"\n[bold]{aoi.name}[/bold] — {baseline} vs {recent}\n")
+    result = run_cycle(
+        aoi=aoi,
+        season=WESTERN_GHATS_CLEAR_SEASON,
+        baseline_year=baseline,
+        recent_year=recent,
+        today=today,
+        store=store,
+        dry_run=dry_run,
+    )
+
+    for line in result.summary_lines():
+        console.print(f"  {line}" if line.startswith(" ") else line)
+
+    if result.new_alerts:
+        console.print("\n[bold yellow]Newly confirmed disturbances[/bold yellow]")
+        for alert in sorted(result.new_alerts, key=lambda a: a.area_ha, reverse=True):
+            console.print(
+                f"  {alert.alert_id}  {alert.area_ha:6.2f} ha  "
+                f"{alert.lat:.5f}, {alert.lon:.5f}  "
+                f"[dim](seen {alert.confirmations}x since {alert.first_seen})[/dim]"
+            )
+        console.print("\n[dim]Possible forest disturbance — requires ground verification.[/dim]")
+    else:
+        console.print("\n[green]No newly confirmed disturbances.[/green]")
+
+    console.print()
 
 
 if __name__ == "__main__":  # pragma: no cover

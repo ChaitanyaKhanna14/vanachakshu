@@ -1,0 +1,145 @@
+"""One detection cycle, end to end.
+
+Glue between the Earth Engine side (composites, detection, vectorisation) and
+the pure alert side (identity, confirmation, notify-once). Deliberately thin:
+anything with real logic belongs in the module it came from, where it can be
+tested without credentials.
+
+The one boundary worth naming is :func:`fetch_patch_records` — it is where
+Earth Engine stops. Everything after it is plain dictionaries, so the whole
+alerting half of a cycle can be exercised in CI with no network.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+import ee
+
+from vanachakshu.alerts import AlertStore, TrackedAlert, detections_from_patch_records
+from vanachakshu.config import AreaOfInterest, OpticalDetectionConfig, SeasonWindow
+from vanachakshu.detect import detect_disturbance, disturbance_patches
+from vanachakshu.sentinel2 import seasonal_composite
+
+__all__ = [
+    "RunResult",
+    "fetch_patch_records",
+    "run_cycle",
+    "store_path_for",
+]
+
+
+def store_path_for(aoi: AreaOfInterest, root: Path | None = None) -> Path:
+    """Where an AOI's alert store lives.
+
+    Under ``data/alerts/`` inside the repository, because the scheduled job
+    commits it — history and audit trail come from git rather than a database.
+    """
+    base = root if root is not None else Path("data") / "alerts"
+    return base / f"{aoi.slug}.json"
+
+
+@dataclass(frozen=True)
+class RunResult:
+    """Outcome of a single cycle, in terms worth printing or emailing."""
+
+    baseline_year: int
+    recent_year: int
+    patches_found: int
+    patches_total_ha: float
+    new_alerts: tuple[TrackedAlert, ...]
+    pending_count: int
+    notified_total: int
+    dry_run: bool
+
+    @property
+    def new_alert_ha(self) -> float:
+        return sum(alert.area_ha for alert in self.new_alerts)
+
+    def summary_lines(self) -> list[str]:
+        """Plain-text report. No markup, so the same text works in a terminal,
+        a CI log, and the body of an alert email."""
+        lines = [
+            f"Compared {self.baseline_year} with {self.recent_year}",
+            f"  disturbances detected : {self.patches_found} ({self.patches_total_ha:.1f} ha)",
+            f"  newly confirmed       : {len(self.new_alerts)} ({self.new_alert_ha:.1f} ha)",
+            f"  awaiting confirmation : {self.pending_count}",
+            f"  announced to date     : {self.notified_total}",
+        ]
+        if self.dry_run:
+            lines.append("  DRY RUN - alert store was not written")
+        return lines
+
+
+def fetch_patch_records(
+    aoi: AreaOfInterest,
+    season: SeasonWindow,
+    baseline_year: int,
+    recent_year: int,
+    config: OpticalDetectionConfig | None = None,
+) -> list[dict[str, Any]]:
+    """Run detection on Earth Engine and bring back plain GeoJSON features.
+
+    This is the last function in a cycle that needs credentials. It returns
+    dictionaries rather than ``ee`` objects on purpose, so everything
+    downstream is ordinary Python.
+    """
+    if baseline_year >= recent_year:
+        raise ValueError(
+            f"baseline_year ({baseline_year}) must be earlier than recent_year ({recent_year})"
+        )
+
+    cfg = config if config is not None else OpticalDetectionConfig()
+    geometry = ee.Geometry.Rectangle(aoi.bbox.as_ee_coords())
+
+    baseline = seasonal_composite(geometry, season, baseline_year, cfg)
+    recent = seasonal_composite(geometry, season, recent_year, cfg)
+    disturbance = detect_disturbance(baseline, recent, baseline_year, cfg)
+    patches = disturbance_patches(disturbance, geometry, cfg)
+
+    collection: dict[str, Any] = patches.getInfo() or {}
+    features: list[dict[str, Any]] = collection.get("features", [])
+    return features
+
+
+def run_cycle(
+    aoi: AreaOfInterest,
+    season: SeasonWindow,
+    baseline_year: int,
+    recent_year: int,
+    today: date,
+    store: AlertStore,
+    config: OpticalDetectionConfig | None = None,
+    dry_run: bool = False,
+) -> RunResult:
+    """Detect, confirm, record, and report.
+
+    ``store`` is passed in rather than constructed here so a caller can supply
+    a temporary one — which is what makes a full cycle testable end to end.
+
+    On ``dry_run`` the store is loaded and updated in memory but never written.
+    Useful for trying a threshold without burning the confirmation state, which
+    is not recoverable once an alert has been marked announced.
+    """
+    store.load()
+
+    records = fetch_patch_records(aoi, season, baseline_year, recent_year, config)
+    detections = detections_from_patch_records(records, today)
+    new_alerts = store.ingest(detections, today)
+
+    if not dry_run:
+        store.save(today)
+
+    return RunResult(
+        baseline_year=baseline_year,
+        recent_year=recent_year,
+        patches_found=len(records),
+        patches_total_ha=sum(float(r.get("properties", {}).get("area_ha", 0.0)) for r in records),
+        new_alerts=tuple(new_alerts),
+        pending_count=len(store.pending()),
+        notified_total=len(store.notified()),
+        dry_run=dry_run,
+    )

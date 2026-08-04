@@ -211,10 +211,22 @@ class AlertStore:
                 )
             else:
                 key = existing.alert_id
+                observed = detection.observed_on.isoformat()
+
+                # A confirmation must come from a *distinct observation*, not a
+                # distinct invocation. The scheduled job retries after transient
+                # failures, and without this a single retry would double-count
+                # the same imagery and confirm an alert that has been seen once.
+                repeat_of_same_observation = existing.last_seen == observed
+
                 merged = replace(
                     existing,
-                    last_seen=detection.observed_on.isoformat(),
-                    confirmations=existing.confirmations + 1,
+                    last_seen=observed,
+                    confirmations=(
+                        existing.confirmations
+                        if repeat_of_same_observation
+                        else existing.confirmations + 1
+                    ),
                     # Clearings grow. Keep the largest extent seen so the
                     # reported area never shrinks below what was announced.
                     area_ha=max(existing.area_ha, detection.area_ha),

@@ -195,6 +195,28 @@ class TestNotifyOnceGuarantee:
         assert store.ingest(detections, DAY1) == []
         assert store.ingest(detections, DAY1) == []
 
+    def test_a_retry_on_the_same_day_does_not_falsely_confirm(self) -> None:
+        # The scheduled job retries after transient failures. Counting the same
+        # imagery twice would confirm an alert that has genuinely been seen
+        # once, defeating the entire point of the confirmation rule.
+        store = AlertStore(Path("unused"), AlertConfig(min_confirmations=2))
+        assert store.ingest([_detection(on=DAY1)], DAY1) == []
+        assert store.ingest([_detection(on=DAY1)], DAY1) == [], "retry must not confirm"
+        assert store.ingest([_detection(on=DAY1)], DAY1) == []
+        assert store.alerts[0].confirmations == 1
+
+        # A genuinely new observation still confirms.
+        assert len(store.ingest([_detection(on=DAY2)], DAY2)) == 1
+
+    def test_a_retry_still_updates_the_recorded_area(self) -> None:
+        # Not counting a retry as confirmation must not mean ignoring it: a
+        # re-run with a better composite may measure the clearing more fully.
+        store = AlertStore(Path("unused"), AlertConfig(min_confirmations=2))
+        store.ingest([_detection(area=1.0, on=DAY1)], DAY1)
+        store.ingest([_detection(area=4.0, on=DAY1)], DAY1)
+        assert store.alerts[0].confirmations == 1
+        assert store.alerts[0].area_ha == 4.0
+
     def test_notification_date_is_recorded(self) -> None:
         store = AlertStore(Path("unused"), AlertConfig(min_confirmations=1))
         notified = store.ingest([_detection(on=DAY1)], DAY1)

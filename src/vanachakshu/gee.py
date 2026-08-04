@@ -97,6 +97,27 @@ _PROBES: Final[tuple[tuple[InitFailureKind, tuple[str, ...]], ...]] = (
             "not found or deleted",
         ),
     ),
+    # Checked before NOT_AUTHENTICATED. Transport failures happen while talking
+    # to the OAuth endpoint, so their messages contain the URL ".../token" and
+    # would otherwise be misread as a credentials problem. Observed for real: an
+    # SSL certificate error was reported as "no valid credentials", sending the
+    # user to re-authenticate when the actual cause was TLS interception.
+    (
+        InitFailureKind.NETWORK,
+        (
+            "certificate verify failed",
+            "certificate_verify_failed",
+            "sslerror",
+            "ssl:",
+            "max retries exceeded",
+            "connection",
+            "timed out",
+            "timeout",
+            "temporary failure",
+            "unreachable",
+            "name resolution",
+        ),
+    ),
     (
         InitFailureKind.NOT_AUTHENTICATED,
         (
@@ -105,17 +126,18 @@ _PROBES: Final[tuple[tuple[InitFailureKind, tuple[str, ...]], ...]] = (
             "credential",
             "not initialized",
             "invalid_grant",
-            "token",
+            # Deliberately specific. A bare "token" also matches the OAuth
+            # endpoint URL, which appears in transport errors that have nothing
+            # to do with credentials.
+            "token has been expired",
+            "token has been revoked",
+            "invalid token",
             "401",
         ),
     ),
     (
         InitFailureKind.PERMISSION_DENIED,
         ("permission", "forbidden", "403", "access denied", "caller does not have"),
-    ),
-    (
-        InitFailureKind.NETWORK,
-        ("connection", "timed out", "timeout", "temporary failure", "unreachable"),
     ),
 )
 
@@ -160,8 +182,15 @@ _REMEDIATION: Final[dict[InitFailureKind, str]] = {
         "reset (1st of the month, Pacific time). " + _DOCS_HINT
     ),
     InitFailureKind.NETWORK: (
-        "Could not reach Earth Engine. This looks like a network problem rather than a "
-        "configuration one — check connectivity and retry."
+        "Could not reach Earth Engine. This is a transport problem, not a "
+        "configuration one — re-authenticating will not help.\n"
+        "If the error mentions a certificate ('CERTIFICATE_VERIFY_FAILED'), something "
+        "is intercepting TLS. Usual causes, in order of likelihood: corporate or "
+        "campus network proxy, antivirus HTTPS scanning, or a VPN. Try another "
+        "network, pause the interceptor, or point REQUESTS_CA_BUNDLE at the "
+        "intercepting root certificate.\n"
+        "Otherwise check connectivity and retry — transient failures are common and "
+        "the scheduled job should simply run again next cycle."
     ),
     InitFailureKind.UNKNOWN: (
         "Earth Engine initialisation failed for an unrecognised reason. The original "

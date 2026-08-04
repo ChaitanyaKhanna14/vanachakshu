@@ -86,6 +86,31 @@ class TestClassifyInitError:
     def test_detects_network_failures(self, message: str) -> None:
         assert classify_init_error(message) == InitFailureKind.NETWORK
 
+    def test_tls_interception_is_not_mistaken_for_bad_credentials(self) -> None:
+        # Captured verbatim from a real failure. The OAuth endpoint URL ends in
+        # "/token", which an earlier, looser probe matched — so an SSL problem
+        # was reported as "no valid credentials", sending the user off to
+        # re-authenticate when the real cause was a TLS interceptor.
+        message = (
+            "HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries "
+            "exceeded with url: /token (Caused by SSLError(SSLCertVerificationError(1, "
+            "'[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get "
+            "local issuer certificate (_ssl.c:1002)')))"
+        )
+        assert classify_init_error(message) == InitFailureKind.NETWORK
+
+    def test_genuine_token_expiry_is_still_an_auth_failure(self) -> None:
+        # Tightening the token probe must not lose the real case.
+        assert (
+            classify_init_error("invalid_grant: Token has been expired or revoked.")
+            == InitFailureKind.NOT_AUTHENTICATED
+        )
+
+    def test_network_remediation_names_tls_interception_causes(self) -> None:
+        text = remediation_for(InitFailureKind.NETWORK)
+        assert "certificate" in text.lower()
+        assert "proxy" in text.lower()
+
     def test_unrecognised_message_is_unknown_not_a_guess(self) -> None:
         # Falling back to UNKNOWN is deliberate: a confidently wrong diagnosis
         # costs more time than an honest "I don't know, here is the raw error".
