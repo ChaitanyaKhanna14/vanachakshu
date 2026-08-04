@@ -82,6 +82,29 @@ its tolerance, or it is not comparable to anything.
 | No loss recorded | 131 (92%) |
 | Loss in 2021–2025 | 11 (8%) |
 
+## 5. The minimum patch size is a bigger filter than expected
+
+Measured during the first live pipeline run, threshold 0.25, 2020 vs 2025:
+
+| Stage | Detected |
+|---|---|
+| Pixel level, no size filter | 81.3 ha |
+| After the 0.5 ha minimum patch size | **12.3 ha** |
+
+The size filter removes **85% of detected area**. Most flagged pixels sit in
+scattered patches below half a hectare.
+
+That is consistent with the landscape — Western Ghats clearing is small and
+fragmented — but it means the 0.5 ha floor is doing far more work here than the
+plan anticipated, and against Hansen's 235 ha of recorded loss it leaves recall
+very low.
+
+**Open question, not yet answered:** is 0.5 ha the right floor for this
+landscape? RADD's validated floor is 0.2 ha. Lowering it would raise recall and
+lower precision, and the sub-0.5 ha detections are exactly the ones Hansen is
+least able to adjudicate at 30 m. This should be settled in Phase 4 against <5 m
+imagery, where small clearings can actually be judged — not guessed at now.
+
 ---
 
 ## Chosen operating point
