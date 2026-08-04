@@ -1,0 +1,138 @@
+name: Forest monitor
+
+# Runs the detection cycle unattended and commits the alert store back.
+#
+# CADENCE: monthly, not fortnightly — deliberately.
+#
+# The optical detector compares *annual* seasonal composites, so its output only
+# changes when a new January-March window completes. Running it every two weeks
+# would burn Earth Engine quota to produce an identical answer eleven times a
+# year. Monthly is frequent enough to catch the season rollover promptly and to
+# keep the pipeline exercised, so a breakage surfaces within weeks rather than
+# on the one run of the year that matters.
+#
+# True near-real-time alerting arrives with the Sentinel-1 radar detector in
+# Phase 3, which works on a 6-12 day revisit and can see through monsoon cloud.
+# The schedule should tighten then, not before.
+
+on:
+  schedule:
+    # 03:00 UTC on the 1st of each month (08:30 IST).
+    - cron: "0 3 1 * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Detect and report without writing the alert store"
+        type: boolean
+        default: false
+
+# The job commits the alert store, so it needs write access. This also requires
+# Settings -> Actions -> General -> Workflow permissions -> "Read and write".
+permissions:
+  contents: write
+
+# Never let two cycles run at once. Both would read the same store, and the
+# second commit would clobber the first — silently losing the record of what
+# had already been announced.
+concurrency:
+  group: forest-monitor
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    name: Detect and record disturbances
+    runs-on: ubuntu-latest
+    # Earth Engine calls over a full AOI are slow; the default 6 h is far more
+    # than needed, and a stuck run should fail rather than hold the lock.
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      # The runner has no Google login of its own, so it authenticates with a
+      # service-account key. Written via an environment variable rather than an
+      # inline shell string so the key never appears in a command line, where
+      # it could surface in process listings or error output.
+      - name: Write service-account key
+        env:
+          EE_KEY: ${{ secrets.EE_SERVICE_ACCOUNT_KEY }}
+        run: |
+          if [ -z "$EE_KEY" ]; then
+            echo "::error::EE_SERVICE_ACCOUNT_KEY secret is not set. See README, 'Earth Engine access'."
+            exit 1
+          fi
+          printf '%s' "$EE_KEY" > "$RUNNER_TEMP/ee-key.json"
+          chmod 600 "$RUNNER_TEMP/ee-key.json"
+
+      # Verify access before spending quota on a full detection run. A setup
+      # failure here reports the actual cause instead of surfacing later as
+      # "no disturbances found", which is indistinguishable from good news.
+      - name: Verify Earth Engine access
+        env:
+          VANACHAKSHU_EE_PROJECT: ${{ vars.EE_PROJECT }}
+          VANACHAKSHU_EE_SERVICE_ACCOUNT_KEY: ${{ runner.temp }}/ee-key.json
+        run: vanachakshu doctor
+
+      - name: Run detection cycle
+        env:
+          VANACHAKSHU_EE_PROJECT: ${{ vars.EE_PROJECT }}
+          VANACHAKSHU_EE_SERVICE_ACCOUNT_KEY: ${{ runner.temp }}/ee-key.json
+        run: |
+          vanachakshu run ${{ inputs.dry_run && '--dry-run' || '' }} \
+            | tee "$RUNNER_TEMP/cycle.txt"
+
+      - name: Remove service-account key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/ee-key.json"
+
+      - name: Commit the alert store
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name  "vanachakshu-monitor[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # An unchanged store is the normal outcome for most months. Committing
+          # anyway would fill the history with empty commits and make the real
+          # changes impossible to find.
+          if git diff --quiet -- data/alerts; then
+            echo "No change to the alert store."
+            exit 0
+          fi
+
+          git add data/alerts
+          git commit -m "Monitor: alert store updated $(date -u +%Y-%m-%d)
+
+          $(cat "$RUNNER_TEMP/cycle.txt")"
+
+          # Someone may have pushed while this ran. Rebase rather than merge, so
+          # the history stays linear and readable.
+          git pull --rebase --autostash origin main
+          git push
+
+      - name: Summarise on the run page
+        if: always()
+        run: |
+          {
+            echo "## Forest monitor"
+            echo
+            if [ -f "$RUNNER_TEMP/cycle.txt" ]; then
+              echo '```'
+              cat "$RUNNER_TEMP/cycle.txt"
+              echo '```'
+            else
+              echo "The cycle did not complete. See the failing step above."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

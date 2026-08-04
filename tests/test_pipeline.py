@@ -27,7 +27,12 @@ from vanachakshu.config import (
     AreaOfInterest,
     BoundingBox,
 )
-from vanachakshu.pipeline import RunResult, run_cycle, store_path_for
+from vanachakshu.pipeline import (
+    RunResult,
+    default_comparison_years,
+    run_cycle,
+    store_path_for,
+)
 
 DAY1 = date(2026, 1, 1)
 DAY2 = date(2026, 1, 13)
@@ -110,6 +115,43 @@ class TestStorePath:
             bbox=BoundingBox(west=74.60, south=14.55, east=74.70, north=14.65),
         )
         assert store_path_for(YELLAPUR_TALUK, tmp_path) != store_path_for(other, tmp_path)
+
+
+class TestDefaultComparisonYears:
+    """What the scheduled job compares when nobody tells it."""
+
+    def test_uses_the_most_recent_complete_season(self) -> None:
+        # August 2026: the Jan-Mar 2026 window has finished, so it is usable.
+        baseline, recent = default_comparison_years(WESTERN_GHATS_CLEAR_SEASON, date(2026, 8, 4))
+        assert (baseline, recent) == (2025, 2026)
+
+    def test_will_not_use_a_season_still_in_progress(self) -> None:
+        # February 2026: Jan-Mar 2026 is only part-collected. Compositing it
+        # would give a thinner, cloudier image than the year it is compared
+        # against, which reads as vegetation loss across the whole AOI.
+        baseline, recent = default_comparison_years(WESTERN_GHATS_CLEAR_SEASON, date(2026, 2, 15))
+        assert (baseline, recent) == (2024, 2025)
+
+    def test_gap_is_configurable(self) -> None:
+        baseline, recent = default_comparison_years(
+            WESTERN_GHATS_CLEAR_SEASON, date(2026, 8, 4), gap_years=4
+        )
+        assert (baseline, recent) == (2022, 2026)
+
+    def test_baseline_is_always_before_recent(self) -> None:
+        # Guards the invariant fetch_patch_records enforces downstream.
+        for month in range(1, 13):
+            baseline, recent = default_comparison_years(
+                WESTERN_GHATS_CLEAR_SEASON, date(2026, month, 15)
+            )
+            assert baseline < recent
+
+    @pytest.mark.parametrize("gap", [0, -1])
+    def test_rejects_a_non_positive_gap(self, gap: int) -> None:
+        # gap_years=0 would compare a year with itself and report nothing,
+        # everywhere, forever.
+        with pytest.raises(ValueError, match="at least 1"):
+            default_comparison_years(WESTERN_GHATS_CLEAR_SEASON, date(2026, 8, 4), gap)
 
 
 class TestFullCycle:

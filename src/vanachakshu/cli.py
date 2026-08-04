@@ -20,7 +20,7 @@ from vanachakshu.alerts import AlertStore
 from vanachakshu.config import WESTERN_GHATS_CLEAR_SEASON, YELLAPUR_TALUK, AlertConfig
 from vanachakshu.diagnostics import all_passed, run_diagnostics
 from vanachakshu.gee import EarthEngineSetupError, initialize
-from vanachakshu.pipeline import run_cycle, store_path_for
+from vanachakshu.pipeline import default_comparison_years, run_cycle, store_path_for
 
 app = typer.Typer(
     name="vanachakshu",
@@ -85,8 +85,17 @@ def doctor() -> None:
 
 @app.command()
 def run(
-    baseline: Annotated[int, typer.Option(help="Earlier year to compare from.")],
-    recent: Annotated[int, typer.Option(help="Later year to compare to.")],
+    baseline: Annotated[
+        int | None,
+        typer.Option(help="Earlier year. Defaults to one year before --recent."),
+    ] = None,
+    recent: Annotated[
+        int | None,
+        typer.Option(
+            help="Later year. Defaults to the most recent *complete* season, "
+            "since compositing a season still in progress reads as vegetation loss."
+        ),
+    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -108,6 +117,13 @@ def run(
     """
     aoi = YELLAPUR_TALUK
     today = date.today()
+
+    # The scheduled job passes neither, so it works them out itself. Baseline is
+    # derived from the *resolved* recent year, so `--recent 2023` alone still
+    # gives a sensible 2022 baseline rather than one anchored to today.
+    _, default_recent = default_comparison_years(WESTERN_GHATS_CLEAR_SEASON, today)
+    recent = recent if recent is not None else default_recent
+    baseline = baseline if baseline is not None else recent - 1
 
     try:
         initialize()

@@ -26,10 +26,34 @@ from vanachakshu.sentinel2 import seasonal_composite
 
 __all__ = [
     "RunResult",
+    "default_comparison_years",
     "fetch_patch_records",
     "run_cycle",
     "store_path_for",
 ]
+
+
+def default_comparison_years(
+    season: SeasonWindow, today: date, gap_years: int = 1
+) -> tuple[int, int]:
+    """Pick which two years to compare when nobody says.
+
+    The scheduled job has no one to tell it, so it takes the most recent
+    *complete* seasonal window and looks back ``gap_years``.
+
+    Completeness matters: compositing a season still in progress yields a
+    thinner, cloudier image than the year it is compared against, which then
+    reads as vegetation loss. See
+    :meth:`~vanachakshu.config.SeasonWindow.most_recent_complete_year`.
+
+    A one-year gap is the default because the Phase 1 finding showed gap length
+    barely affects the score — so the shortest gap wins, since it at least
+    narrows down *when* the loss happened.
+    """
+    if gap_years < 1:
+        raise ValueError(f"gap_years must be at least 1, got {gap_years}")
+    recent = season.most_recent_complete_year(today)
+    return recent - gap_years, recent
 
 
 def store_path_for(aoi: AreaOfInterest, root: Path | None = None) -> Path:
