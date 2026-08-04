@@ -98,6 +98,21 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/ee-key.json"
 
+      # The digest and GeoJSON are derivable from the alert store, so they are
+      # not committed. Keeping them as artifacts still makes them downloadable
+      # — someone planning a field visit can pull the GeoJSON straight onto a
+      # handheld GPS or into QGIS without cloning anything.
+      - name: Upload digest and GeoJSON
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: alerts-${{ github.run_number }}
+          path: data/output/
+          if-no-files-found: warn
+          # Long enough to cover a field visit prompted by a monthly cycle,
+          # short enough not to hoard derivable files indefinitely.
+          retention-days: 90
+
       - name: Commit the alert store
         if: ${{ !inputs.dry_run }}
         run: |

@@ -16,8 +16,11 @@ in reflectance. What caused it is for a human to establish.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 from typing import Any, Final
 
 from vanachakshu.alerts import TrackedAlert
@@ -25,11 +28,13 @@ from vanachakshu.config import AreaOfInterest
 
 __all__ = [
     "GROUND_VERIFICATION_NOTICE",
+    "ReportFiles",
     "alerts_to_geojson",
     "format_alert",
     "format_digest",
     "google_maps_url",
     "openstreetmap_url",
+    "write_reports",
 ]
 
 GROUND_VERIFICATION_NOTICE: Final = (
@@ -129,6 +134,22 @@ def format_digest(
     return "\n".join(header) + "\n\n".join(body) + "\n"
 
 
+def _status_of(alert: TrackedAlert) -> str:
+    """How much weight this alert can carry.
+
+    An export that treated confirmed and unconfirmed alerts alike would send
+    someone to locations the system has seen exactly once — which is where the
+    weather-driven false positives live. The distinction has to survive into
+    the file, not just the email.
+    """
+    if alert.is_notified:
+        return "confirmed on multiple passes - requires ground verification"
+    return (
+        f"UNCONFIRMED - seen {alert.confirmations} "
+        f"{'pass' if alert.confirmations == 1 else 'passes'}, awaiting more"
+    )
+
+
 def alerts_to_geojson(alerts: Sequence[TrackedAlert], aoi: AreaOfInterest) -> dict[str, Any]:
     """Export alerts as GeoJSON, loadable by a field GPS or QGIS.
 
@@ -153,9 +174,51 @@ def alerts_to_geojson(alerts: Sequence[TrackedAlert], aoi: AreaOfInterest) -> di
                     "last_seen": alert.last_seen,
                     "confirmations": alert.confirmations,
                     "notified_on": alert.notified_on,
-                    "status": "possible disturbance - requires ground verification",
+                    "status": _status_of(alert),
                 },
             }
             for alert in sorted(alerts, key=lambda a: a.area_ha, reverse=True)
         ],
     }
+
+
+@dataclass(frozen=True)
+class ReportFiles:
+    """Paths written by :func:`write_reports`."""
+
+    digest: Path
+    geojson: Path
+
+
+def write_reports(
+    new_alerts: Sequence[TrackedAlert],
+    all_alerts: Sequence[TrackedAlert],
+    aoi: AreaOfInterest,
+    out_dir: Path,
+    issued_on: date,
+) -> ReportFiles:
+    """Write this cycle's digest and a GeoJSON of everything tracked.
+
+    Two different audiences, so two different scopes:
+
+    * The **digest** covers only what is newly confirmed — it is the message
+      someone reads, and it must not re-state things they were told last month.
+    * The **GeoJSON** covers *everything* tracked, confirmed and not, each
+      labelled with its status. That is a working file for QGIS or a handheld
+      GPS, where the useful thing is the full picture with its uncertainty
+      attached rather than a filtered subset.
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp = issued_on.isoformat()
+
+    digest_path = out_dir / f"{aoi.slug}-{stamp}.txt"
+    digest_path.write_text(format_digest(new_alerts, aoi, issued_on), encoding="utf-8")
+
+    # Fixed name, not dated: this is the current picture, and something
+    # pointing at it (a map, a bookmark) should not need updating each cycle.
+    geojson_path = out_dir / f"{aoi.slug}-alerts.geojson"
+    geojson_path.write_text(
+        json.dumps(alerts_to_geojson(all_alerts, aoi), indent=2) + "\n", encoding="utf-8"
+    )
+
+    return ReportFiles(digest=digest_path, geojson=geojson_path)

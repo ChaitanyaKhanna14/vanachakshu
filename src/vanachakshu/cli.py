@@ -21,6 +21,7 @@ from vanachakshu.config import WESTERN_GHATS_CLEAR_SEASON, YELLAPUR_TALUK, Alert
 from vanachakshu.diagnostics import all_passed, run_diagnostics
 from vanachakshu.gee import EarthEngineSetupError, initialize
 from vanachakshu.pipeline import default_comparison_years, run_cycle, store_path_for
+from vanachakshu.report import format_digest, write_reports
 
 app = typer.Typer(
     name="vanachakshu",
@@ -109,6 +110,14 @@ def run(
         Path | None,
         typer.Option(help="Directory holding alert stores. Defaults to data/alerts."),
     ] = None,
+    report_dir: Annotated[
+        Path | None,
+        typer.Option(
+            help="Where to write the digest and GeoJSON. Defaults to data/output "
+            "(gitignored — reports are derivable from the store, so they are "
+            "regenerated rather than versioned)."
+        ),
+    ] = None,
 ) -> None:
     """Run one detection cycle and record any newly confirmed alerts.
 
@@ -148,18 +157,24 @@ def run(
     for line in result.summary_lines():
         console.print(f"  {line}" if line.startswith(" ") else line)
 
+    files = write_reports(
+        new_alerts=result.new_alerts,
+        all_alerts=store.alerts,
+        aoi=aoi,
+        out_dir=report_dir if report_dir is not None else Path("data") / "output",
+        issued_on=today,
+    )
+
     if result.new_alerts:
-        console.print("\n[bold yellow]Newly confirmed disturbances[/bold yellow]")
-        for alert in sorted(result.new_alerts, key=lambda a: a.area_ha, reverse=True):
-            console.print(
-                f"  {alert.alert_id}  {alert.area_ha:6.2f} ha  "
-                f"{alert.lat:.5f}, {alert.lon:.5f}  "
-                f"[dim](seen {alert.confirmations}x since {alert.first_seen})[/dim]"
-            )
-        console.print("\n[dim]Possible forest disturbance — requires ground verification.[/dim]")
+        # The full digest, not a summary of it: this is the text a person acts
+        # on, and it should be visible wherever the run is visible.
+        console.print()
+        console.print(format_digest(result.new_alerts, aoi, today))
     else:
         console.print("\n[green]No newly confirmed disturbances.[/green]")
 
+    console.print(f"\n[dim]digest  : {files.digest}[/dim]")
+    console.print(f"[dim]geojson : {files.geojson}  ({len(store.alerts)} tracked)[/dim]")
     console.print()
 
 

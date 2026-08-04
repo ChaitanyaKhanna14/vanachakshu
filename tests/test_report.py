@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -24,6 +25,7 @@ from vanachakshu.report import (
     format_digest,
     google_maps_url,
     openstreetmap_url,
+    write_reports,
 )
 
 ISSUED = date(2026, 8, 4)
@@ -100,6 +102,49 @@ class TestResponsibleWording:
     def test_geojson_status_is_hedged(self) -> None:
         feature = alerts_to_geojson([_alert()], YELLAPUR_TALUK)["features"][0]
         assert "requires ground verification" in feature["properties"]["status"]
+
+
+class TestGeoJsonStatusDistinguishesConfidence:
+    """A GPS file that treated confirmed and unconfirmed alike would send
+    someone to locations seen exactly once — where the weather-driven false
+    positives live."""
+
+    def test_confirmed_alert_says_so(self) -> None:
+        confirmed = _alert()  # notified_on is set
+        status = alerts_to_geojson([confirmed], YELLAPUR_TALUK)["features"][0]["properties"][
+            "status"
+        ]
+        assert "confirmed on multiple passes" in status
+        assert "UNCONFIRMED" not in status
+
+    def test_unconfirmed_alert_is_flagged_loudly(self) -> None:
+        pending = TrackedAlert(
+            alert_id="pending01",
+            lon=74.6358,
+            lat=15.0265,
+            area_ha=1.1,
+            first_seen="2026-08-04",
+            last_seen="2026-08-04",
+            confirmations=1,
+            notified_on=None,
+        )
+        status = alerts_to_geojson([pending], YELLAPUR_TALUK)["features"][0]["properties"]["status"]
+        assert status.startswith("UNCONFIRMED")
+        assert "1 pass" in status
+
+    def test_unconfirmed_plural_is_grammatical(self) -> None:
+        pending = TrackedAlert(
+            alert_id="pending02",
+            lon=74.6358,
+            lat=15.0265,
+            area_ha=1.1,
+            first_seen="2026-07-01",
+            last_seen="2026-08-04",
+            confirmations=2,
+            notified_on=None,
+        )
+        status = alerts_to_geojson([pending], YELLAPUR_TALUK)["features"][0]["properties"]["status"]
+        assert "2 passes" in status
 
 
 class TestFormatAlert:
@@ -235,3 +280,54 @@ class TestGeoJsonExport:
         data = alerts_to_geojson([], YELLAPUR_TALUK)
         assert data["features"] == []
         assert data["type"] == "FeatureCollection"
+
+
+class TestWriteReports:
+    def test_writes_both_files(self, tmp_path: Path) -> None:
+        files = write_reports([_alert()], [_alert()], YELLAPUR_TALUK, tmp_path, ISSUED)
+        assert files.digest.exists()
+        assert files.geojson.exists()
+
+    def test_creates_the_output_directory(self, tmp_path: Path) -> None:
+        # The scheduled job starts from a fresh checkout with no output dir.
+        target = tmp_path / "nested" / "output"
+        write_reports([], [], YELLAPUR_TALUK, target, ISSUED)
+        assert target.is_dir()
+
+    def test_digest_is_dated_but_geojson_is_not(self, tmp_path: Path) -> None:
+        # The digest is a message from one cycle, so it is archived per date.
+        # The GeoJSON is the current picture, so anything pointing at it — a
+        # map, a bookmark — should not need updating every cycle.
+        files = write_reports([_alert()], [_alert()], YELLAPUR_TALUK, tmp_path, ISSUED)
+        assert "2026-08-04" in files.digest.name
+        assert "2026-08-04" not in files.geojson.name
+
+    def test_digest_covers_only_new_alerts(self, tmp_path: Path) -> None:
+        # Someone must not be re-told what they were told last cycle.
+        new = _alert(alert_id="brandnew", area_ha=3.0)
+        old = _alert(alert_id="oldnews", area_ha=9.0)
+        files = write_reports([new], [new, old], YELLAPUR_TALUK, tmp_path, ISSUED)
+        text = files.digest.read_text(encoding="utf-8")
+        assert "brandnew" in text
+        assert "oldnews" not in text
+
+    def test_geojson_covers_everything_tracked(self, tmp_path: Path) -> None:
+        # The working file needs the full picture, with uncertainty attached.
+        new = _alert(alert_id="brandnew", area_ha=3.0)
+        old = _alert(alert_id="oldnews", area_ha=9.0)
+        files = write_reports([new], [new, old], YELLAPUR_TALUK, tmp_path, ISSUED)
+        data = json.loads(files.geojson.read_text(encoding="utf-8"))
+        assert {f["properties"]["alert_id"] for f in data["features"]} == {
+            "brandnew",
+            "oldnews",
+        }
+
+    def test_a_quiet_cycle_still_writes_both_files(self, tmp_path: Path) -> None:
+        # Absent files would look like a crashed run rather than a quiet month.
+        files = write_reports([], [_alert()], YELLAPUR_TALUK, tmp_path, ISSUED)
+        assert "No newly confirmed" in files.digest.read_text(encoding="utf-8")
+        assert json.loads(files.geojson.read_text(encoding="utf-8"))["features"]
+
+    def test_geojson_is_valid_json_on_disk(self, tmp_path: Path) -> None:
+        files = write_reports([_alert()], [_alert()], YELLAPUR_TALUK, tmp_path, ISSUED)
+        json.loads(files.geojson.read_text(encoding="utf-8"))
