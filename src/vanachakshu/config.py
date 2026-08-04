@@ -9,7 +9,7 @@ these objects are frozen, nothing downstream can mutate them mid-pipeline.
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated, Final, Self
+from typing import Annotated, Final, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -210,6 +210,75 @@ class OpticalDetectionConfig(BaseModel):
         """``min_clearing_ha`` expressed as a whole number of pixels."""
         px_area_ha = (self.pixel_size_m**2) / 10_000.0
         return max(1, round(self.min_clearing_ha / px_area_ha))
+
+
+class RadarDetectionConfig(BaseModel):
+    """Settings for the Sentinel-1 radar detector (Phase 3).
+
+    Radar is the point of the project. It sees through monsoon cloud, which
+    blinds the optical detector for four months a year — exactly when clearing
+    peaks — and it revisits every 6-12 days, so it can say *when* a disturbance
+    happened rather than only that it happened sometime in a year.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    orbit_pass: Literal["ASCENDING", "DESCENDING"] = Field(
+        default="DESCENDING",
+        description=(
+            "Compare only passes from one orbit direction. Ascending and "
+            "descending look at a hillside from opposite sides, so their "
+            "backscatter differs for reasons that have nothing to do with the "
+            "ground. Mixing them into one baseline manufactures change."
+        ),
+    )
+    terrain_model: Literal["volume", "surface"] = Field(
+        default="volume",
+        description=(
+            "Radiometric slope correction model (Vollrath et al. 2020). "
+            "'volume' assumes volume scattering and is the one intended for "
+            "vegetation; 'surface' targets bare ground and urban areas."
+        ),
+    )
+    speckle_radius_m: float = Field(
+        default=30.0,
+        gt=0.0,
+        description=(
+            "Radius of the focal-mean speckle filter. Radar images are grainy "
+            "by nature — coherent interference, not sensor noise — and a single "
+            "pixel means little. Larger values smooth more but blur the small "
+            "clearings this project is trying to find."
+        ),
+    )
+    baseline_days: int = Field(
+        default=365,
+        ge=60,
+        description=(
+            "How much history defines 'normal' for a pixel. A full year covers "
+            "the seasonal cycle, so a wet-season pass is not compared against a "
+            "dry-season normal."
+        ),
+    )
+    drop_db: float = Field(
+        default=2.5,
+        gt=0.0,
+        description=(
+            "Backscatter fall, in decibels, that counts as a possible "
+            "disturbance. Losing canopy reduces volume scattering, so VH "
+            "backscatter drops. Provisional until swept against Hansen the way "
+            "the optical threshold was."
+        ),
+    )
+    min_confirming_passes: int = Field(
+        default=2,
+        ge=1,
+        description=(
+            "Consecutive passes that must all show the drop. This is the single "
+            "biggest false-positive filter in radar: wet ground and rain change "
+            "backscatter dramatically but recover by the next pass, whereas cut "
+            "forest stays cut."
+        ),
+    )
 
 
 class AlertConfig(BaseModel):

@@ -57,4 +57,8 @@ CHIRPS_DAILY: Final = "UCSB-CHG/CHIRPS/DAILY"
 # Digital elevation model used for radiometric terrain correction in Phase 3.
 # Copernicus GLO-30 is newer and cleaner than SRTM over steep Western Ghats
 # terrain, where layover and shadow are the dominant radar problem.
-COPERNICUS_DEM: Final = "COPERNICUS/DEM/GLO30"
+#
+# NOTE this is an ImageCollection of tiles, not a single Image - it must be
+# mosaicked before use. The plain "COPERNICUS/DEM/GLO30" id is deprecated in
+# favour of the 2024 reprocessing.
+COPERNICUS_DEM: Final = "COPERNICUS/DEM/GLO30_2024_1"
