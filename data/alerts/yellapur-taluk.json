@@ -3,6 +3,26 @@
   "updated": "2026-08-04",
   "alerts": [
     {
+      "alert_id": "0b99c714fdef47cf",
+      "lon": 74.63437033757276,
+      "lat": 14.948730266202533,
+      "area_ha": 0.8868782381593632,
+      "first_seen": "2026-08-04",
+      "last_seen": "2026-08-04",
+      "confirmations": 1,
+      "notified_on": null
+    },
+    {
+      "alert_id": "1c1e39f9d1cad868",
+      "lon": 74.72722984243822,
+      "lat": 15.005687310055249,
+      "area_ha": 0.5107830339281385,
+      "first_seen": "2026-08-04",
+      "last_seen": "2026-08-04",
+      "confirmations": 1,
+      "notified_on": null
+    },
+    {
       "alert_id": "3aad293b1f7961ed",
       "lon": 74.63576045392897,
       "lat": 15.026491580237577,
@@ -47,6 +67,16 @@
       "lon": 74.63244671439936,
       "lat": 14.946281934768347,
       "area_ha": 1.349612864914272,
+      "first_seen": "2026-08-04",
+      "last_seen": "2026-08-04",
+      "confirmations": 1,
+      "notified_on": null
+    },
+    {
+      "alert_id": "828392510999739a",
+      "lon": 74.78765223592708,
+      "lat": 14.80225735425596,
+      "area_ha": 0.6077312023342133,
       "first_seen": "2026-08-04",
       "last_seen": "2026-08-04",
       "confirmations": 1,
