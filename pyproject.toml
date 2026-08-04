@@ -50,7 +50,13 @@ src = ["src", "tests"]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.mypy]
-python_version = "3.11"
+# Deliberately NOT pinning python_version. mypy then targets whichever
+# interpreter it runs under, which is what the CI matrix needs.
+#
+# Pinning it to 3.11 broke the 3.12 job: mypy parsed as 3.11 while reading
+# dependency stubs installed for 3.12, and numpy's stubs use `type` statements
+# that only 3.12+ can parse. The failure names numpy, so it reads like a
+# dependency problem rather than a configuration one.
 strict = true
 files = ["src/vanachakshu"]
 # earthengine-api ships inline type hints as of 1.7, so no override is needed

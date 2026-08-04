@@ -1,7 +1,9 @@
 # --- Python build & cache artefacts -----------------------------------------
 __pycache__/
 *.py[cod]
-.venv/
+# Glob, not a fixed name: version-suffixed venvs (.venv313) get created when
+# reproducing a CI matrix failure locally.
+.venv*/
 venv/
 *.egg-info/
 dist/
