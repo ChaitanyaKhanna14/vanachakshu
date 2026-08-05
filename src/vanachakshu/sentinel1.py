@@ -35,6 +35,7 @@ from vanachakshu.config import RadarDetectionConfig
 __all__ = [
     "add_speckle_filter",
     "collection",
+    "look_direction",
     "slope_correction",
     "to_db",
     "to_linear",
@@ -70,10 +71,69 @@ def to_db(image: ee.Image) -> ee.Image:
     return result
 
 
+def look_direction(image: ee.Image, geometry: ee.Geometry) -> ee.Number:
+    """Radar azimuth look direction, in radians.
+
+    Sentinel-1's ``angle`` band increases steadily across the swath, so the
+    *aspect* of that band points along the look direction. Averaging it over the
+    AOI recovers the geometry without needing orbit metadata.
+
+    Exposed separately because this is a ``reduceRegion``, and computing it
+    inside a per-scene map costs one server-side reduction per scene. Over a
+    year of passes that alone exhausted Earth Engine's memory limit. The look
+    direction is a property of the orbit rather than the individual acquisition,
+    so :func:`collection` computes it once and reuses it.
+    """
+    result: ee.Number = ee.Number(
+        ee.Terrain.aspect(image.select("angle").multiply(_DEG_TO_RAD))
+        .reduceRegion(reducer=ee.Reducer.mean(), geometry=geometry, scale=1000, maxPixels=int(1e9))
+        .get("aspect")
+    ).multiply(_DEG_TO_RAD)
+    return result
+
+
+def terrain_geometry(look_direction_rad: ee.Number) -> ee.Image:
+    """Terrain slope projected into radar geometry: ``alpha_r`` and ``alpha_az``.
+
+    Both depend only on the DEM and the orbit's look direction, so they are the
+    same for every scene in a collection. Computing them per scene means running
+    ``ee.Terrain.slope`` and ``ee.Terrain.aspect`` over the DEM dozens of times
+    to get dozens of identical answers — which is the other half of what
+    exhausted Earth Engine's memory limit over a year of passes.
+
+    ``alpha_r`` is the slope component along the radar look direction; positive
+    means tilted toward the sensor. ``alpha_az`` is the component across it.
+    """
+    # setDefaultProjection is not optional. A mosaic has no fixed projection,
+    # and ee.Terrain.slope on such an image computes gradients at whatever
+    # resolution the enclosing request happens to use — silently yielding a
+    # nonsense correction that still returns plausible decibels.
+    elevation = (
+        ee.ImageCollection(datasets.COPERNICUS_DEM)
+        .select("DEM")
+        .mosaic()
+        .setDefaultProjection("EPSG:4326", None, _DEM_SCALE_M)
+    )
+
+    alpha_s_rad = ee.Terrain.slope(elevation).select("slope").multiply(_DEG_TO_RAD)
+    phi_s_rad = ee.Terrain.aspect(elevation).select("aspect").multiply(_DEG_TO_RAD)
+    # The look direction is one scalar for the whole AOI while the terrain
+    # aspect varies per pixel, so the scalar must be promoted to an image:
+    # ee.Number.subtract(ee.Image) is not a valid operation.
+    phi_r_rad = ee.Image.constant(look_direction_rad).subtract(phi_s_rad)
+
+    alpha_r = alpha_s_rad.tan().multiply(phi_r_rad.cos()).atan().rename("alpha_r")
+    alpha_az = alpha_s_rad.tan().multiply(phi_r_rad.sin()).atan().rename("alpha_az")
+
+    result: ee.Image = alpha_r.addBands(alpha_az)
+    return result
+
+
 def slope_correction(
     image: ee.Image,
     geometry: ee.Geometry,
     config: RadarDetectionConfig | None = None,
+    terrain: ee.Image | None = None,
 ) -> ee.Image:
     """Radiometrically flatten terrain, and mask where radar cannot see.
 
@@ -101,43 +161,18 @@ def slope_correction(
     """
     cfg = config if config is not None else RadarDetectionConfig()
 
-    # The DEM ships as a collection of tiles, so it must be mosaicked. Loading
-    # it as an Image fails outright, which is the good case — the quiet failure
-    # would have been a single tile silently covering part of the AOI.
-    #
-    # setDefaultProjection is not optional. A mosaic has no fixed projection,
-    # and ee.Terrain.slope on such an image computes slope at whatever
-    # resolution the enclosing request happens to use — which silently yields
-    # nonsense gradients, and therefore a nonsense correction. Pinning it to
-    # the DEM's native 30 m makes the slope mean what it says.
-    elevation = (
-        ee.ImageCollection(datasets.COPERNICUS_DEM)
-        .select("DEM")
-        .mosaic()
-        .setDefaultProjection("EPSG:4326", None, _DEM_SCALE_M)
-    )
     sigma0_pow = to_linear(image.select(list(_S1_BANDS)))
-
     ninety_rad = ee.Image.constant(90.0 * _DEG_TO_RAD)
     theta_i_rad = image.select("angle").multiply(_DEG_TO_RAD)
 
-    # Step 1. Aspect of the incidence-angle band recovers the look direction.
-    phi_i_rad = ee.Number(
-        ee.Terrain.aspect(theta_i_rad)
-        .reduceRegion(reducer=ee.Reducer.mean(), geometry=geometry, scale=1000, maxPixels=int(1e9))
-        .get("aspect")
-    ).multiply(_DEG_TO_RAD)
-
-    # Step 2. Terrain slope and aspect, projected into radar geometry.
-    alpha_s_rad = ee.Terrain.slope(elevation).select("slope").multiply(_DEG_TO_RAD)
-    phi_s_rad = ee.Terrain.aspect(elevation).select("aspect").multiply(_DEG_TO_RAD)
-    # phi_i_rad is a scalar (one look direction for the whole AOI) while
-    # phi_s_rad varies per pixel. Promote the scalar to a constant image:
-    # ee.Number.subtract(ee.Image) is not a valid operation.
-    phi_r_rad = ee.Image.constant(phi_i_rad).subtract(phi_s_rad)
-
-    alpha_r_rad = alpha_s_rad.tan().multiply(phi_r_rad.cos()).atan()
-    alpha_az_rad = alpha_s_rad.tan().multiply(phi_r_rad.sin()).atan()
+    # Steps 1 and 2. Both are scene-independent, so a caller correcting a whole
+    # collection computes them once and passes them in. Computing them here is
+    # the single-image convenience path.
+    resolved_terrain = (
+        terrain if terrain is not None else terrain_geometry(look_direction(image, geometry))
+    )
+    alpha_r_rad = resolved_terrain.select("alpha_r")
+    alpha_az_rad = resolved_terrain.select("alpha_az")
 
     # gamma0: sigma0 referenced to the plane perpendicular to the look
     # direction. This removes the flat-earth incidence-angle effect; the slope
@@ -230,8 +265,13 @@ def collection(
         .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VH"))
     )
 
+    # Computed once for the whole collection, not once per scene. Both the look
+    # direction and the terrain projection are scene-independent; recomputing
+    # them per pass is what exhausted Earth Engine's memory limit over a year.
+    terrain = terrain_geometry(look_direction(ee.Image(raw.first()), geometry))
+
     def _prepare(image: ee.Image) -> ee.Image:
-        return add_speckle_filter(slope_correction(image, geometry, cfg), cfg)
+        return add_speckle_filter(slope_correction(image, geometry, cfg, terrain), cfg)
 
     prepared: ee.ImageCollection = ee.ImageCollection(raw.map(_prepare))
     return prepared
