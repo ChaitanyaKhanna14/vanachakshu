@@ -193,12 +193,13 @@ def add_speckle_filter(image: ee.Image, config: RadarDetectionConfig | None = No
     """
     cfg = config if config is not None else RadarDetectionConfig()
     bands = image.select(list(_S1_BANDS))
-    smoothed = to_db(
-        to_linear(bands).reduceNeighborhood(
-            reducer=ee.Reducer.mean(),
-            kernel=ee.Kernel.circle(cfg.speckle_radius_m, "meters"),
-        )
-    ).rename(list(_S1_BANDS))
+
+    # focalMean, not reduceNeighborhood with Reducer.mean. They compute the
+    # same thing, but focalMean is the optimised path; the generic form
+    # exhausted Earth Engine's memory limit when mapped over a year of scenes.
+    smoothed = to_db(to_linear(bands).focalMean(cfg.speckle_radius_m, "circle", "meters")).rename(
+        list(_S1_BANDS)
+    )
 
     result: ee.Image = image.addBands(smoothed, overwrite=True)
     return result

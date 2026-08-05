@@ -25,21 +25,26 @@ cannot distinguish logging from fire or landslide. Those are Phase 3's problem.
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from typing import Final
 
 import ee
 
-from vanachakshu import hansen
-from vanachakshu.config import OpticalDetectionConfig
+from vanachakshu import hansen, sentinel1
+from vanachakshu.config import OpticalDetectionConfig, RadarDetectionConfig
 
 __all__ = [
     "DISTURBANCE_BAND",
+    "RADAR_DISTURBANCE_BAND",
+    "baseline_window",
     "detect_disturbance",
+    "detect_radar_disturbance",
     "disturbance_patches",
     "summarise_patches",
 ]
 
 DISTURBANCE_BAND: Final = "disturbed"
+RADAR_DISTURBANCE_BAND: Final = "radar_disturbed"
 
 # Cap for connected-component counting. Any patch at or above the minimum size
 # passes regardless, so counting beyond a few hundred pixels buys nothing and
@@ -137,6 +142,114 @@ def disturbance_patches(
     # The authoritative minimum-size rule. connectedPixelCount above is a cheap
     # pre-filter; this is the exact one, applied to true polygon area.
     result: ee.FeatureCollection = with_area.filter(ee.Filter.gte("area_ha", cfg.min_clearing_ha))
+    return result
+
+
+def baseline_window(monitor_start: date, baseline_days: int) -> tuple[str, str]:
+    """Dates defining "normal" for a pixel, ending where monitoring begins.
+
+    The two windows must not overlap. If the baseline included the period being
+    monitored, a real clearing would drag its own "normal" downward and partly
+    hide itself — the detector would be grading its own homework.
+    """
+    if baseline_days < 1:
+        raise ValueError(f"baseline_days must be positive, got {baseline_days}")
+    start = monitor_start - timedelta(days=baseline_days)
+    return start.isoformat(), monitor_start.isoformat()
+
+
+def detect_radar_disturbance(
+    geometry: ee.Geometry,
+    monitor_start: date,
+    monitor_end: date,
+    baseline_year: int,
+    config: RadarDetectionConfig | None = None,
+    optical_config: OpticalDetectionConfig | None = None,
+) -> ee.Image:
+    """Detect sustained backscatter loss — the radar detector.
+
+    The idea in one line: work out what each pixel normally looks like to
+    radar, then flag the ones that have got quieter and *stayed* quieter.
+
+    Losing canopy reduces volume scattering, so VH backscatter falls. VH is used
+    rather than VV because cross-polarised return comes mostly from multiple
+    bounces inside the canopy, which is exactly what clearing destroys; VV is
+    more sensitive to surface roughness and soil moisture.
+
+    Persistence is what makes this trustworthy. Rain and wet soil change
+    backscatter by several decibels — as much as real clearing — but recover by
+    the next pass, whereas cut forest stays cut. So the drop is required in
+    **every one of the last ``min_confirming_passes``** rather than merely
+    somewhere in the window. A transient cannot satisfy that.
+
+    Returns ``radar_disturbed`` (0/1), ``drop_db`` (how far backscatter fell),
+    ``first_drop_millis`` (when it was first seen — the thing optical cannot
+    tell you) and ``n_dropped`` (how many passes in total showed the drop).
+    """
+    cfg = config if config is not None else RadarDetectionConfig()
+
+    baseline_start, baseline_end = baseline_window(monitor_start, cfg.baseline_days)
+    baseline = (
+        sentinel1.collection(geometry, baseline_start, baseline_end, cfg)
+        .select("VH")
+        .median()
+        .rename("baseline_vh")
+    )
+
+    monitoring = sentinel1.collection(
+        geometry, monitor_start.isoformat(), monitor_end.isoformat(), cfg
+    )
+
+    def _flag(image: ee.Image) -> ee.Image:
+        # Positive means quieter than normal, which is the direction clearing
+        # moves backscatter.
+        fall = baseline.subtract(image.select("VH")).rename("drop_db")
+        dropped = fall.gte(cfg.drop_db).rename("dropped")
+        # Acquisition time, kept only where the drop occurred, so reducing with
+        # min() over the collection yields the first pass that saw it.
+        stamp = (
+            ee.Image.constant(ee.Number(image.get("system:time_start")))
+            .updateMask(dropped)
+            .rename("t")
+            .toDouble()
+        )
+        # copyProperties returns the generic Element, so re-wrap to keep the
+        # mapped collection an ImageCollection to the type checker.
+        flagged_image: ee.Image = ee.Image(
+            dropped.addBands(fall).addBands(stamp).copyProperties(image, ["system:time_start"])
+        )
+        return flagged_image
+
+    flagged = ee.ImageCollection(monitoring.map(_flag))
+
+    # min() over a 0/1 band is a logical AND: every one of these passes must
+    # have dropped. Taking the *latest* passes means the disturbance is still
+    # present at the end of the window rather than having recovered.
+    latest = flagged.sort("system:time_start", False).limit(cfg.min_confirming_passes)
+    persistent = latest.select("dropped").reduce(ee.Reducer.min()).rename(RADAR_DISTURBANCE_BAND)
+
+    first_drop = flagged.select("t").reduce(ee.Reducer.min()).rename("first_drop_millis")
+    n_dropped = flagged.select("dropped").reduce(ee.Reducer.sum()).rename("n_dropped")
+    depth = flagged.select("drop_db").reduce(ee.Reducer.mean()).rename("drop_db")
+
+    # Same two guards as the optical detector: it must have been forest, and
+    # the patch must be big enough to be a clearing rather than speckle.
+    optical_cfg = optical_config if optical_config is not None else OpticalDetectionConfig()
+    was_forest = hansen.forest_mask(baseline_year, optical_cfg)
+    candidate = persistent.unmask(0).gt(0).And(was_forest)
+
+    patch_pixels = candidate.selfMask().connectedPixelCount(
+        maxSize=_MAX_CONNECTED_PIXELS, eightConnected=True
+    )
+    disturbed = candidate.And(patch_pixels.gte(optical_cfg.min_clearing_pixels)).rename(
+        RADAR_DISTURBANCE_BAND
+    )
+
+    result: ee.Image = (
+        disturbed.addBands(depth.updateMask(disturbed))
+        .addBands(first_drop.updateMask(disturbed))
+        .addBands(n_dropped.updateMask(disturbed))
+    )
     return result
 
 
