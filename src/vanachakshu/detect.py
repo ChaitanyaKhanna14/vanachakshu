@@ -158,6 +158,44 @@ def baseline_window(monitor_start: date, baseline_days: int) -> tuple[str, str]:
     return start.isoformat(), monitor_start.isoformat()
 
 
+def _has_consecutive_run(flagged: ee.ImageCollection, run_length: int) -> ee.Image:
+    """1 where ``run_length`` *consecutive* passes all showed the drop.
+
+    The first version of this took the last N passes of the window and required
+    all of them to have dropped. That answers "is this pixel disturbed **now**",
+    which is the right question for a live alert but the wrong one for "did a
+    disturbance **occur** during this period" — a clearing in March only counted
+    if its backscatter was still suppressed the following December, nine months
+    and a monsoon later.
+
+    A sliding window asks the right question, and window *length* then controls
+    recency: a monitoring window of a few weeks makes "a run occurred in the
+    window" and "it is disturbed now" the same statement.
+
+    Implemented over the time axis as an array. Multiplying ``run_length``
+    offset slices gives 1 only where every pass in the run dropped, and the
+    maximum over the result asks whether any such run exists.
+    """
+    if run_length < 1:
+        raise ValueError(f"run_length must be positive, got {run_length}")
+
+    stack = flagged.select("dropped").toArray()
+
+    product: ee.Image | None = None
+    for offset in range(run_length):
+        trailing = run_length - 1 - offset
+        window = stack.arraySlice(0, offset, -trailing) if trailing else stack.arraySlice(0, offset)
+        product = window if product is None else product.multiply(window)
+
+    assert product is not None  # run_length >= 1 guarantees at least one slice
+    result: ee.Image = (
+        product.arrayReduce(ee.Reducer.max(), [0])
+        .arrayGet(ee.Image.constant(0).toInt())
+        .rename(RADAR_DISTURBANCE_BAND)
+    )
+    return result
+
+
 def detect_radar_disturbance(
     geometry: ee.Geometry,
     monitor_start: date,
@@ -204,7 +242,10 @@ def detect_radar_disturbance(
         # Positive means quieter than normal, which is the direction clearing
         # moves backscatter.
         fall = baseline.subtract(image.select("VH")).rename("drop_db")
-        dropped = fall.gte(cfg.drop_db).rename("dropped")
+        # unmask(0) so layover, shadow and other no-data read as "not dropped".
+        # Left masked they would propagate through the run detection below and
+        # silently void whole hillsides.
+        dropped = fall.gte(cfg.drop_db).unmask(0).rename("dropped")
         # Acquisition time, kept only where the drop occurred, so reducing with
         # min() over the collection yields the first pass that saw it.
         stamp = (
@@ -220,13 +261,9 @@ def detect_radar_disturbance(
         )
         return flagged_image
 
-    flagged = ee.ImageCollection(monitoring.map(_flag))
+    flagged = ee.ImageCollection(monitoring.map(_flag).sort("system:time_start"))
 
-    # min() over a 0/1 band is a logical AND: every one of these passes must
-    # have dropped. Taking the *latest* passes means the disturbance is still
-    # present at the end of the window rather than having recovered.
-    latest = flagged.sort("system:time_start", False).limit(cfg.min_confirming_passes)
-    persistent = latest.select("dropped").reduce(ee.Reducer.min()).rename(RADAR_DISTURBANCE_BAND)
+    persistent = _has_consecutive_run(flagged, cfg.min_confirming_passes)
 
     first_drop = flagged.select("t").reduce(ee.Reducer.min()).rename("first_drop_millis")
     n_dropped = flagged.select("dropped").reduce(ee.Reducer.sum()).rename("n_dropped")
