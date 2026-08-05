@@ -121,7 +121,10 @@ def fetch_patch_records(
 
     baseline = seasonal_composite(geometry, season, baseline_year, cfg)
     recent = seasonal_composite(geometry, season, recent_year, cfg)
-    disturbance = detect_disturbance(baseline, recent, baseline_year, cfg)
+    # geometry is passed so the drop is measured against the landscape's own
+    # median shift. Without it a region-wide dry year reads as deforestation
+    # everywhere — measured at 3,840 ha in the 2023 monsoon failure.
+    disturbance = detect_disturbance(baseline, recent, baseline_year, cfg, geometry)
     patches = disturbance_patches(disturbance, geometry, cfg)
 
     collection: dict[str, Any] = patches.getInfo() or {}

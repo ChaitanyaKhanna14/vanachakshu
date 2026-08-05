@@ -52,17 +52,59 @@ RADAR_DISTURBANCE_BAND: Final = "radar_disturbed"
 _MAX_CONNECTED_PIXELS: Final = 256
 
 
+def landscape_normalised_drop(ndvi_drop: ee.Image, geometry: ee.Geometry) -> ee.Image:
+    """Subtract the AOI-wide median shift from a per-pixel NDVI drop.
+
+    **Deforestation is local; weather is not.** An absolute threshold cannot
+    tell them apart, and in one year here that mattered enormously.
+
+    Measured over Yellapur, median NDVI across the whole AOI moved by +0.008 in
+    every year-on-year step except 2022→2023, where it fell by **0.055** — a
+    landscape-wide drop, most likely the 2023 El Niño monsoon failure. The
+    composites were not at fault: 34 scenes, ~28 cloud-free looks per pixel,
+    0.1% thin. The ground really was less green everywhere.
+
+    An absolute threshold reads that as deforestation across the entire
+    district: the detector flagged **3,840 ha**, forty times all loss Hansen
+    recorded, while neighbouring year-pairs at identical settings flagged ~20 ha.
+
+    Referencing each pixel against its own landscape removes the common-mode
+    signal. A dry year shifts everything together and cancels; a clearing still
+    stands out against neighbours that stayed put.
+
+    The median is used rather than the mean because it is not dragged by the
+    disturbed pixels themselves — the very thing being measured must not define
+    the reference it is measured against.
+    """
+    median_shift = ee.Number(
+        ndvi_drop.reduceRegion(
+            reducer=ee.Reducer.median(),
+            geometry=geometry,
+            scale=200,  # coarse: this is one number for the whole AOI
+            maxPixels=int(1e9),
+            bestEffort=True,
+        ).get("ndvi_drop")
+    )
+    result: ee.Image = ndvi_drop.subtract(ee.Image.constant(median_shift)).rename("ndvi_drop")
+    return result
+
+
 def detect_disturbance(
     baseline: ee.Image,
     recent: ee.Image,
     baseline_year: int,
     config: OpticalDetectionConfig | None = None,
+    geometry: ee.Geometry | None = None,
 ) -> ee.Image:
     """Return a mask of suspected forest loss between two composites.
 
     Both images must come from :func:`vanachakshu.sentinel2.seasonal_composite`
     and must cover the *same seasonal window* in different years — otherwise the
     difference measures the seasons, not the ground.
+
+    When ``geometry`` is supplied the drop is measured **relative to the
+    landscape's own median shift**, which is strongly recommended. See
+    :func:`landscape_normalised_drop` for why.
 
     The returned image carries the binary ``disturbed`` band plus ``ndvi_drop``
     (how far greenness fell, as a positive number) so downstream code can rank
@@ -75,6 +117,8 @@ def detect_disturbance(
 
     # Positive number = greenness fell. Easier to reason about than a negative.
     ndvi_drop = baseline_ndvi.subtract(recent_ndvi).rename("ndvi_drop")
+    if geometry is not None:
+        ndvi_drop = landscape_normalised_drop(ndvi_drop, geometry)
 
     dropped = ndvi_drop.gte(cfg.ndvi_drop_threshold)
     was_vegetated = baseline_ndvi.gte(cfg.forest_ndvi_min)

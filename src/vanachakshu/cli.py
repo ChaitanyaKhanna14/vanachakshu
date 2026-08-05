@@ -22,6 +22,14 @@ from vanachakshu.diagnostics import all_passed, run_diagnostics
 from vanachakshu.gee import EarthEngineSetupError, initialize
 from vanachakshu.pipeline import default_comparison_years, run_cycle, store_path_for
 from vanachakshu.report import format_digest, write_reports
+from vanachakshu.validation import (
+    SIZE_STRATA,
+    load_verdicts,
+    precision_report,
+    size_stratum,
+    stratified_sample,
+    write_worksheet,
+)
 
 app = typer.Typer(
     name="vanachakshu",
@@ -176,6 +184,85 @@ def run(
     console.print(f"\n[dim]digest  : {files.digest}[/dim]")
     console.print(f"[dim]geojson : {files.geojson}  ({len(store.alerts)} tracked)[/dim]")
     console.print()
+
+
+@app.command("validate-sample")
+def validate_sample(
+    per_stratum: Annotated[int, typer.Option(help="Detections to draw from each size band.")] = 25,
+    seed: Annotated[
+        int,
+        typer.Option(
+            help="Random seed. Recorded in the output filename so the sample "
+            "can be redrawn and audited by someone else."
+        ),
+    ] = 42,
+    store_dir: Annotated[Path | None, typer.Option(help="Alert store directory.")] = None,
+    out_dir: Annotated[Path | None, typer.Option(help="Where to write the worksheet.")] = None,
+) -> None:
+    """Draw a stratified sample of detections to check against imagery.
+
+    Hansen cannot settle whether these detections are real: it is a 30 m annual
+    product and most detections are now sub-hectare. Looking at them is the only
+    way, and this builds the worksheet for it.
+    """
+    aoi = YELLAPUR_TALUK
+    store = AlertStore(store_path_for(aoi, store_dir), AlertConfig())
+    store.load()
+
+    if not store.alerts:
+        console.print("[yellow]The alert store is empty — nothing to validate yet.[/yellow]")
+        raise typer.Exit(1)
+
+    sample = stratified_sample(store.alerts, per_stratum=per_stratum, seed=seed)
+    target = (out_dir if out_dir is not None else Path("data") / "validation") / (
+        f"{aoi.slug}-sample-seed{seed}.csv"
+    )
+    path = write_worksheet(sample, target)
+
+    console.print(
+        f"\n[bold]{len(sample)}[/bold] detections sampled from {len(store.alerts)} tracked"
+    )
+    counts: dict[str, int] = {}
+    for alert in sample:
+        stratum = size_stratum(alert.area_ha)
+        counts[stratum] = counts.get(stratum, 0) + 1
+    for name, _, _ in SIZE_STRATA:
+        console.print(f"  {name:>12}: {counts.get(name, 0)}")
+
+    console.print(f"\nworksheet: {path}")
+    console.print(
+        "\n[dim]Open each satellite_view link, decide whether a clearing is visible,\n"
+        "and write true_positive, false_positive or unclear in the verdict column.\n"
+        "Leave genuinely ambiguous ones as 'unclear' rather than guessing — a forced\n"
+        "call invents certainty, and how often it is unclear is itself a finding.[/dim]\n"
+    )
+
+
+@app.command("validate-report")
+def validate_report(
+    worksheet: Annotated[Path, typer.Argument(help="Filled-in worksheet CSV.")],
+) -> None:
+    """Report precision per size band from a completed worksheet."""
+    if not worksheet.is_file():
+        console.print(f"[red]No such worksheet:[/red] {worksheet}")
+        raise typer.Exit(1)
+
+    records = load_verdicts(worksheet)
+    if not records:
+        console.print("[yellow]No verdicts filled in yet.[/yellow]")
+        raise typer.Exit(1)
+
+    console.print(
+        f"\n[bold]Validation against high-resolution imagery[/bold] — {len(records)} judged\n"
+    )
+    for result in precision_report(records):
+        console.print(f"  {result.as_row()}")
+
+    judged = sum(r.judged for r in precision_report(records))
+    console.print(
+        f"\n[dim]Intervals are 95% Wilson score. Precision on n={judged} is a range,\n"
+        "not a point — quote it with the interval or not at all.[/dim]\n"
+    )
 
 
 if __name__ == "__main__":  # pragma: no cover
