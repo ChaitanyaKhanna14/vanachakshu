@@ -151,15 +151,15 @@ class OpticalDetectionConfig(BaseModel):
     pixel_size_m: float = Field(default=10.0, gt=0.0)
 
     ndvi_drop_threshold: float = Field(
-        default=0.25,
+        default=0.15,
         gt=0.0,
         le=2.0,
         description=(
-            "Absolute NDVI fall required to flag a pixel as disturbed. 0.25 was "
-            "chosen empirically, not guessed: it gives the best IoU and F1 in the "
-            "threshold sweep. Raising it to 0.35 buys precision 0.54 (from 0.38) "
-            "but collapses recall to 0.21. See "
-            "docs/findings/2026-08-phase1-optical-baseline.md."
+            "Absolute NDVI fall required to flag a pixel as disturbed. Re-tuned "
+            "on ONE-year gaps, which is what the scheduled monitor actually "
+            "compares. The previous 0.25 came from a four-year sweep and detected "
+            "0.0 ha at the deployed horizon - the live system could not alert at "
+            "all. See docs/findings/2026-08-phase3-one-year-horizon.md."
         ),
     )
     forest_ndvi_min: float = Field(
@@ -178,12 +178,14 @@ class OpticalDetectionConfig(BaseModel):
         ),
     )
     min_clearing_ha: float = Field(
-        default=0.5,
+        default=0.2,
         gt=0.0,
         description=(
-            "Minimum patch size reported. RADD's validated floor is 0.2 ha in flat "
-            "terrain; 0.5 ha is the honest target for the steep, fragmented "
-            "Western Ghats. Raising this trades recall for precision."
+            "Minimum patch size reported, matching RADD's validated floor. The "
+            "previous 0.5 ha was an assumption and it was costing everything: at "
+            "0.5 the detector returns exactly zero on every one-year pair tested, "
+            "while 0.2 returns real detections. Western Ghats clearing is small "
+            "and fragmented, so a half-hectare floor sits above most of it."
         ),
     )
     max_scene_cloud_pct: float = Field(

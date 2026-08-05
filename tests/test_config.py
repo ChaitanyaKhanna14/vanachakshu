@@ -151,25 +151,35 @@ class TestSeasonWindow:
 class TestOpticalDetectionConfig:
     def test_defaults_match_the_plan(self) -> None:
         cfg = OpticalDetectionConfig()
-        assert cfg.min_clearing_ha == 0.5
         assert cfg.hansen_treecover_min_pct == 30  # Global Forest Watch convention
         assert cfg.pixel_size_m == 10.0
 
-    def test_ndvi_threshold_is_the_empirically_chosen_value(self) -> None:
-        # 0.25 comes from the threshold sweep in
-        # docs/findings/2026-08-phase1-optical-baseline.md, not from intuition.
-        # If this changes, the finding needs re-running and the doc updating —
-        # a threshold that drifts away from its evidence is just a guess again.
-        assert OpticalDetectionConfig().ndvi_drop_threshold == 0.25
+    def test_detection_defaults_come_from_the_one_year_sweep(self) -> None:
+        # Both values were re-tuned on ONE-year gaps, which is what the
+        # scheduled monitor actually compares. The previous 0.25 / 0.5 ha pair
+        # came from a four-year sweep and detected 0.0 ha across 1,463 km2 at
+        # the deployed horizon — the live system could not raise an alert at all.
+        #
+        # At 0.5 ha the detector returns exactly zero on every one-year pair
+        # tested; 0.2 ha (RADD's validated floor) returns real detections.
+        #
+        # If either changes, the sweep needs re-running: a threshold that drifts
+        # away from its evidence is a guess again.
+        cfg = OpticalDetectionConfig()
+        assert cfg.ndvi_drop_threshold == 0.15
+        assert cfg.min_clearing_ha == 0.2
 
-    def test_half_hectare_floor_is_fifty_sentinel_pixels(self) -> None:
-        assert OpticalDetectionConfig().min_clearing_pixels == 50
+    def test_default_floor_is_twenty_sentinel_pixels(self) -> None:
+        # 0.2 ha at 10 m resolution.
+        assert OpticalDetectionConfig().min_clearing_pixels == 20
 
     def test_min_clearing_pixels_tracks_resolution(self) -> None:
-        # At Landsat's 30 m, half a hectare is only ~6 pixels — which is why
-        # small-clearing detection needs Sentinel, not Landsat.
+        # At Landsat's 30 m the same 0.2 ha floor is only ~2 pixels, which is
+        # far too few to distinguish a clearing from speckle. This is precisely
+        # why small-clearing detection needs Sentinel — and why Hansen, a 30 m
+        # product, cannot adjudicate the detections this config now produces.
         cfg = OpticalDetectionConfig(pixel_size_m=30.0)
-        assert cfg.min_clearing_pixels == 6
+        assert cfg.min_clearing_pixels == 2
 
     def test_min_clearing_pixels_never_rounds_to_zero(self) -> None:
         cfg = OpticalDetectionConfig(min_clearing_ha=0.0001)
