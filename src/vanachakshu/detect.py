@@ -188,10 +188,14 @@ def _has_consecutive_run(flagged: ee.ImageCollection, run_length: int) -> ee.Ima
         product = window if product is None else product.multiply(window)
 
     assert product is not None  # run_length >= 1 guarantees at least one slice
+
+    # ImageCollection.toArray builds a 2-D array per pixel: [image, band].
+    # Reducing along axis 0 collapses time but leaves shape [1, 1], so the band
+    # axis has to be projected away before it can become an ordinary image.
     result: ee.Image = (
         product.arrayReduce(ee.Reducer.max(), [0])
-        .arrayGet(ee.Image.constant(0).toInt())
-        .rename(RADAR_DISTURBANCE_BAND)
+        .arrayProject([0])
+        .arrayFlatten([[RADAR_DISTURBANCE_BAND]])
     )
     return result
 

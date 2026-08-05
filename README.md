@@ -37,10 +37,31 @@ optical-only system goes blind exactly when clearing activity peaks.
 |---|---|---|
 | 0 | Repo, config, CI, Earth Engine access | ✅ complete |
 | 1 | Sentinel-2 optical baseline, scored against Hansen | ✅ complete |
-| 2 | Scheduled service: cron, alerts, public map | ⬜ not started |
-| 3 | Sentinel-1 radar detector (the core contribution) | ⬜ not started |
-| 4 | Manual validation against <5 m NICFI imagery | ⬜ not started |
+| 2 | Scheduled service: cron, alerts, reports | ✅ running unattended |
+| 3 | Sentinel-1 radar detector | 🟡 terrain correction verified; detector not yet usable |
+| 4 | Manual validation against <5 m NICFI imagery | ⬜ **now the blocking item** |
 | 5 | Documentation, runbook, write-up | ⬜ not started |
+
+## Known limitations, stated up front
+
+**Neither detector currently produces usable output.** Both failures are
+understood and documented rather than hidden.
+
+- **Optical** was tuned on a four-year gap (precision 0.38 / recall 0.34) but the
+  scheduled monitor compares one year to the next, where the same settings detect
+  **0.0 ha**. Re-tuning on the deployed regime is outstanding.
+- **Radar**: the terrain correction is verified (88% of distortion removed), but
+  the change detector's threshold sat inside the noise floor. See
+  [the Phase 3 finding](docs/findings/2026-08-phase3-radar-detector.md).
+- **The reference data cannot currently arbitrate.** Hansen records 10.5 ha of
+  loss in the 366 km² test area — a 0.03% base rate — and is a 30 m annual
+  product that misses sub-hectare and selective clearing. Tuning against a
+  reference that sparse would be fitting noise, which is why Phase 4 validation
+  against <5 m imagery is now the blocking item rather than a polish step.
+
+The infrastructure around the detectors is sound: unattended operation,
+notify-once guarantees, an audit trail, and a verified physics step. The
+detection quality is the open problem.
 
 ## Measured accuracy so far
 
