@@ -25,6 +25,7 @@ from pathlib import Path
 
 import ee
 import requests
+from PIL import Image, ImageChops, ImageStat
 
 from vanachakshu import datasets
 from vanachakshu.alerts import TrackedAlert
@@ -117,6 +118,9 @@ class ChipSet:
     # must not imply a match they do not have.
     wayback_before: tuple[Path, str] | None = None
     wayback_after: tuple[Path, str] | None = None
+    # True when both Wayback releases returned the same acquisition, so the
+    # sharp imagery cannot speak to change — only to what the place is.
+    wayback_is_stale: bool = False
 
     @property
     def is_complete(self) -> bool:
@@ -139,6 +143,25 @@ def _fetch(url: str, destination: Path, timeout: int = 120) -> Path | None:
 
     destination.write_bytes(response.content)
     return destination
+
+
+# Mean per-pixel difference below which two chips are the same acquisition.
+# Measured across this AOI: identical imagery re-encoded differs by ~1.8, while
+# genuinely different Sentinel-2 dates differ by ~7.1. Three sits between them.
+_SAME_IMAGE_THRESHOLD = 3.0
+
+
+def _pairs_match(before: tuple[Path, str] | None, after: tuple[Path, str] | None) -> bool:
+    """True when two chips are the same acquisition rather than two dates."""
+    if before is None or after is None:
+        return False
+    try:
+        first = Image.open(before[0]).convert("L")
+        second = Image.open(after[0]).convert("L")
+    except OSError:
+        return False
+    difference = ImageStat.Stat(ImageChops.difference(first, second)).mean[0]
+    return bool(difference < _SAME_IMAGE_THRESHOLD)
 
 
 def _nicfi_image(geometry: ee.Geometry, year: int) -> ee.Image | None:
@@ -206,8 +229,6 @@ def download_chips(
             out_dir / f"{alert.alert_id}-highres.png",
         )
 
-        # Dated sub-metre pair. This is what makes the change judgeable: sharp
-        # enough to identify land use, dated enough to show what changed.
         wayback: dict[str, tuple[Path, str] | None] = {"before": None, "after": None}
         for label, release in (("before", before_release), ("after", after_release)):
             if release is None:
@@ -223,6 +244,17 @@ def download_chips(
             if saved is not None:
                 wayback[label] = (saved, release.label)
 
+        # Wayback publishes dated *releases*, but a release only contains new
+        # imagery where Esri actually re-flew. Over rural Uttara Kannada both
+        # 2025 and 2026 releases serve the same acquisition, so the "pair" is
+        # one image twice.
+        #
+        # Presenting that as before/after would be worse than showing nothing:
+        # a reviewer comparing two identical images concludes nothing changed,
+        # which is a false negative manufactured by the tooling rather than
+        # observed in the data.
+        stale = _pairs_match(wayback["before"], wayback["after"])
+
         chipsets.append(
             ChipSet(
                 alert=alert,
@@ -231,9 +263,11 @@ def download_chips(
                 baseline_path=paths["before"],
                 recent_path=paths["after"],
                 nicfi_path=nicfi_path,
-                highres_path=highres,
-                wayback_before=wayback["before"],
-                wayback_after=wayback["after"],
+                wayback_before=None if stale else wayback["before"],
+                wayback_after=None if stale else wayback["after"],
+                # Keep one copy as undated context when the pair is redundant.
+                highres_path=(wayback["after"][0] if stale and wayback["after"] else highres),
+                wayback_is_stale=stale,
             )
         )
 
@@ -286,6 +320,8 @@ def write_contact_sheet(chipsets: list[ChipSet], path: Path) -> Path:
             _cell(chips.baseline_path, f"{chips.baseline_year} Sentinel-2 (10 m)"),
             _cell(chips.recent_path, f"{chips.recent_year} Sentinel-2 (10 m)"),
         ]
+        if chips.highres_path is not None:
+            cells.append(_cell(chips.highres_path, "sub-metre (undated) — what is this place?"))
         if chips.nicfi_path is not None:
             cells.append(_cell(chips.nicfi_path, f"NICFI {chips.recent_year} (<5 m)"))
 
@@ -336,14 +372,23 @@ def write_contact_sheet(chipsets: list[ChipSet], path: Path) -> Path:
   .links a {{ color: #6cf; }}
 </style></head><body>
 <h1>Validation chips &mdash; {len(chipsets)} detections</h1>
-<p class="intro">Each row is one detection, marked with a red crosshair. The first
-two images are <strong>sub-metre and dated</strong> &mdash; use these to decide.
-The Sentinel-2 pair that follows is only 10&nbsp;m per pixel, but its dates match
-the detection window exactly, so it corroborates.</p>
-<p class="intro"><strong>Caveat on the sharp pair:</strong> Esri refreshes its
-imagery on an irregular schedule, so the capture dates shown are the nearest
-available to each comparison year, not the years themselves. Check the dates
-before concluding a change happened inside the window.</p>
+<p class="intro">Each row is one detection, marked with a red crosshair.</p>
+<p class="intro"><strong>The Sentinel-2 pair is your evidence of change.</strong>
+It is only 10&nbsp;m per pixel and looks blurry, but its two dates match the
+detection window exactly. The sub-metre image is far sharper but
+<strong>undated</strong>, so it answers only <em>what is this place</em> &mdash;
+plantation rows, quarry, riverbed, settlement &mdash; not whether anything changed.</p>
+<p class="intro">Sub-metre <em>dated</em> imagery was attempted via Esri Wayback
+and is not available here: both the 2025 and 2026 releases return the same
+acquisition, because Esri has not re-flown this area between them. Showing them
+as a before/after pair would invite the conclusion that nothing changed, which
+the imagery cannot support either way, so only one copy is shown and it is
+labelled undated.</p>
+<p class="intro">The commonest false positive: a bare patch that was
+<em>already there</em> in the before image. If the crosshair sits on ground bare
+in both Sentinel-2 chips, that is a <code>false_positive</code> however obvious
+the patch looks. Also watch for plantations &mdash; regular rows or sharp
+rectangular blocks in the sharp image &mdash; which are not forest loss.</p>
 <p class="intro">The commonest false positive here: a bare patch that was
 <em>already there</em> in the before image. If the crosshair sits on ground that
 was bare in both years, that is a <code>false_positive</code> however obvious the
