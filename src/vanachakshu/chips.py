@@ -32,6 +32,7 @@ from vanachakshu.alerts import TrackedAlert
 from vanachakshu.config import OpticalDetectionConfig, SeasonWindow
 from vanachakshu.report import google_maps_url
 from vanachakshu.sentinel2 import rgb_composite
+from vanachakshu.validation import size_stratum
 from vanachakshu.wayback import nearest_release, save_wayback_chip
 
 __all__ = [
@@ -325,18 +326,25 @@ def write_contact_sheet(chipsets: list[ChipSet], path: Path) -> Path:
         if chips.nicfi_path is not None:
             cells.append(_cell(chips.nicfi_path, f"NICFI {chips.recent_year} (<5 m)"))
 
+        aid = html.escape(alert.alert_id)
         rows.append(
             f"""
-    <section>
-      <h2><code>{html.escape(alert.alert_id)}</code>
+    <section data-id="{aid}" data-stratum="{html.escape(size_stratum(alert.area_ha))}"
+             data-area="{alert.area_ha:.3f}">
+      <h2><code>{aid}</code>
         <span class="meta">{alert.area_ha:.2f} ha &middot;
         {alert.lat:.5f}, {alert.lon:.5f} &middot;
         first seen {html.escape(alert.first_seen)}</span></h2>
       <div class="chips">{"".join(cells)}</div>
-      <p class="links">
-        <a href="{html.escape(google_maps_url(alert.lat, alert.lon))}" target="_blank">
-          high-resolution view (undated)</a>
-      </p>
+      <div class="verdict">
+        <button data-v="true_positive">Real clearing</button>
+        <button data-v="false_positive">Not clearing</button>
+        <button data-v="unclear">Unclear</button>
+        <input type="text"
+               placeholder="note &mdash; e.g. plantation rows, already bare, quarry">
+        <a href="{html.escape(google_maps_url(alert.lat, alert.lon))}"
+           target="_blank">open in maps</a>
+      </div>
     </section>"""
         )
 
@@ -369,7 +377,27 @@ def write_contact_sheet(chipsets: list[ChipSet], path: Path) -> Path:
               place-items: center; background: #1a1a1a; border-radius: 4px;
               color: #666; text-align: center; }}
   figcaption {{ color: #999; font-size: .85rem; margin-top: .35rem; }}
-  .links a {{ color: #6cf; }}
+  .verdict {{ display: flex; gap: .5rem; align-items: center; margin-top: .9rem;
+              flex-wrap: wrap; }}
+  .verdict button {{ font: inherit; padding: .45rem .9rem; border-radius: 4px;
+    border: 1px solid #444; background: #1c1c1c; color: #ddd; cursor: pointer; }}
+  .verdict button:hover {{ border-color: #777; }}
+  .verdict button.on {{ color: #fff; }}
+  .verdict button.on[data-v="true_positive"]  {{ background:#1d4b25; border-color:#3a9c4a; }}
+  .verdict button.on[data-v="false_positive"] {{ background:#5a2020; border-color:#b04a4a; }}
+  .verdict button.on[data-v="unclear"]        {{ background:#4a411a; border-color:#a89234; }}
+  .verdict input {{ font: inherit; flex: 1; min-width: 16rem; padding: .45rem .6rem;
+    background:#1c1c1c; border:1px solid #444; border-radius:4px; color:#ddd; }}
+  .verdict a {{ color:#6cf; font-size:.85rem; }}
+  section.done {{ opacity: .55; }}
+  section.done:hover {{ opacity: 1; }}
+  #bar {{ position: sticky; bottom: 0; background:#181818; border-top:1px solid #333;
+    padding: .8rem 1rem; display:flex; gap:1rem; align-items:center;
+    margin: 2rem -2rem -2rem; }}
+  #bar button {{ font: inherit; padding:.5rem 1rem; border-radius:4px; border:0;
+    background:#2b6cb0; color:#fff; cursor:pointer; }}
+  #bar button:disabled {{ background:#333; color:#777; cursor:not-allowed; }}
+  #count {{ color:#aaa; }}
 </style></head><body>
 <h1>Validation chips &mdash; {len(chipsets)} detections</h1>
 <p class="intro">Each row is one detection, marked with a red crosshair.</p>
@@ -400,6 +428,68 @@ or <code>unclear</code> against each id in the worksheet CSV. Use
 corrupts the number you are trying to measure.</p>
 <p class="intro">{complete} of {len(chipsets)} have both dated chips.</p>
 {"".join(rows)}
+<div id="bar">
+  <span id="count"></span>
+  <button id="save" disabled>Download verdicts CSV</button>
+  <span style="color:#777;font-size:.85rem">
+    Saved in this browser as you go &mdash; refreshing will not lose your work.</span>
+</div>
+<script>
+// Verdicts are recorded here rather than in the spreadsheet because matching
+// thirteen ids across two windows by eye is where transcription errors happen.
+// localStorage means a closed tab does not discard a half-finished review.
+const KEY = "vanachakshu-verdicts";
+const state = JSON.parse(localStorage.getItem(KEY) || "{{}}");
+
+function refresh() {{
+  let done = 0;
+  document.querySelectorAll("section[data-id]").forEach(s => {{
+    const rec = state[s.dataset.id];
+    s.querySelectorAll(".verdict button").forEach(b =>
+      b.classList.toggle("on", !!rec && rec.verdict === b.dataset.v));
+    const note = s.querySelector(".verdict input");
+    if (rec && rec.note && note.value !== rec.note) note.value = rec.note;
+    s.classList.toggle("done", !!rec);
+    if (rec) done++;
+  }});
+  const total = document.querySelectorAll("section[data-id]").length;
+  document.getElementById("count").textContent = done + " of " + total + " reviewed";
+  document.getElementById("save").disabled = done === 0;
+}}
+
+document.querySelectorAll("section[data-id]").forEach(s => {{
+  s.querySelectorAll(".verdict button").forEach(b => b.onclick = () => {{
+    const cur = state[s.dataset.id] || {{}};
+    state[s.dataset.id] = {{
+      verdict: b.dataset.v, note: cur.note || "",
+      stratum: s.dataset.stratum, area: s.dataset.area
+    }};
+    localStorage.setItem(KEY, JSON.stringify(state));
+    refresh();
+  }});
+  s.querySelector(".verdict input").oninput = e => {{
+    if (!state[s.dataset.id]) return;   // a note without a verdict scores nothing
+    state[s.dataset.id].note = e.target.value;
+    localStorage.setItem(KEY, JSON.stringify(state));
+  }};
+}});
+
+document.getElementById("save").onclick = () => {{
+  const lines = ["alert_id,stratum,area_ha,verdict,note"];
+  for (const [id, r] of Object.entries(state)) {{
+    // Quote the note: a comma in free text would otherwise shift every column.
+    lines.push([id, r.stratum, r.area, r.verdict,
+                '"' + String(r.note || "").replace(/"/g, '""') + '"'].join(","));
+  }}
+  const blob = new Blob([lines.join("\\n") + "\\n"], {{type: "text/csv"}});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "verdicts.csv";
+  a.click();
+}};
+
+refresh();
+</script>
 </body></html>
 """
     path.write_text(document, encoding="utf-8")
