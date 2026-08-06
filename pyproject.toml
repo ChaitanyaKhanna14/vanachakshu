@@ -20,6 +20,8 @@ dependencies = [
     # Used directly to download validation image chips. Arrives transitively via
     # earthengine-api, but depending on it explicitly is the honest declaration.
     "requests>=2.31",
+    # Stitching Wayback map tiles into a chip centred on the detection.
+    "pillow>=10.0",
 ]
 
 [project.optional-dependencies]

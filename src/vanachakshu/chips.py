@@ -20,6 +20,7 @@ from __future__ import annotations
 import html
 import math
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 import ee
@@ -30,6 +31,7 @@ from vanachakshu.alerts import TrackedAlert
 from vanachakshu.config import OpticalDetectionConfig, SeasonWindow
 from vanachakshu.report import google_maps_url
 from vanachakshu.sentinel2 import rgb_composite
+from vanachakshu.wayback import nearest_release, save_wayback_chip
 
 __all__ = [
     "ChipSet",
@@ -110,6 +112,11 @@ class ChipSet:
     recent_path: Path | None
     nicfi_path: Path | None
     highres_path: Path | None = None
+    # Dated sub-metre pair, with the true capture dates rather than the
+    # comparison years — Esri's refresh schedule is irregular and the labels
+    # must not imply a match they do not have.
+    wayback_before: tuple[Path, str] | None = None
+    wayback_after: tuple[Path, str] | None = None
 
     @property
     def is_complete(self) -> bool:
@@ -168,6 +175,12 @@ def download_chips(
     cfg = config if config is not None else OpticalDetectionConfig()
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    # Resolved once for the batch: the catalogue is a few hundred entries and
+    # the same two releases serve every detection.
+    # Mid-season, since the Sentinel-2 composites cover January to March.
+    before_release = nearest_release(date(baseline_year, 2, 15))
+    after_release = nearest_release(date(recent_year, 2, 15))
+
     chipsets: list[ChipSet] = []
     for alert in alerts:
         region = chip_bounds(alert.lon, alert.lat)
@@ -193,6 +206,23 @@ def download_chips(
             out_dir / f"{alert.alert_id}-highres.png",
         )
 
+        # Dated sub-metre pair. This is what makes the change judgeable: sharp
+        # enough to identify land use, dated enough to show what changed.
+        wayback: dict[str, tuple[Path, str] | None] = {"before": None, "after": None}
+        for label, release in (("before", before_release), ("after", after_release)):
+            if release is None:
+                continue
+            saved = save_wayback_chip(
+                lon=alert.lon,
+                lat=alert.lat,
+                release=release.release,
+                destination=out_dir / f"{alert.alert_id}-wayback-{label}.png",
+                half_width_m=_CHIP_HALF_WIDTH_M,
+                output_pixels=_CHIP_PIXELS,
+            )
+            if saved is not None:
+                wayback[label] = (saved, release.label)
+
         chipsets.append(
             ChipSet(
                 alert=alert,
@@ -202,6 +232,8 @@ def download_chips(
                 recent_path=paths["after"],
                 nicfi_path=nicfi_path,
                 highres_path=highres,
+                wayback_before=wayback["before"],
+                wayback_after=wayback["after"],
             )
         )
 
@@ -237,14 +269,22 @@ def write_contact_sheet(chipsets: list[ChipSet], path: Path) -> Path:
     rows: list[str] = []
     for chips in chipsets:
         alert = chips.alert
-        cells = [
-            _cell(chips.baseline_path, f"{chips.baseline_year} (before)"),
-            _cell(chips.recent_path, f"{chips.recent_year} (after)"),
+        # Sharp dated pair first — it is the one that actually decides the
+        # verdict. The Sentinel-2 pair follows as corroboration, since its dates
+        # match the detection window exactly even though its pixels do not
+        # resolve much.
+        cells = []
+        for label, entry in (("before", chips.wayback_before), ("after", chips.wayback_after)):
+            if entry is not None:
+                path, captured = entry
+                cells.append(_cell(path, f"{captured} ({label}, sub-metre)"))
+
+        cells += [
+            _cell(chips.baseline_path, f"{chips.baseline_year} Sentinel-2 (10 m)"),
+            _cell(chips.recent_path, f"{chips.recent_year} Sentinel-2 (10 m)"),
         ]
         if chips.nicfi_path is not None:
             cells.append(_cell(chips.nicfi_path, f"NICFI {chips.recent_year} (<5 m)"))
-        if chips.highres_path is not None:
-            cells.append(_cell(chips.highres_path, "sub-metre (undated)"))
 
         rows.append(
             f"""
@@ -293,10 +333,14 @@ def write_contact_sheet(chipsets: list[ChipSet], path: Path) -> Path:
   .links a {{ color: #6cf; }}
 </style></head><body>
 <h1>Validation chips &mdash; {len(chipsets)} detections</h1>
-<p class="intro">Each row is one detection, marked with a red crosshair. The two
-Sentinel-2 chips are 10&nbsp;m per pixel &mdash; blurry, but correctly dated, so they
-answer <strong>did this change?</strong> The sub-metre image is far sharper but
-carries no date, so it only answers <strong>what is this place?</strong> Use both.</p>
+<p class="intro">Each row is one detection, marked with a red crosshair. The first
+two images are <strong>sub-metre and dated</strong> &mdash; use these to decide.
+The Sentinel-2 pair that follows is only 10&nbsp;m per pixel, but its dates match
+the detection window exactly, so it corroborates.</p>
+<p class="intro"><strong>Caveat on the sharp pair:</strong> Esri refreshes its
+imagery on an irregular schedule, so the capture dates shown are the nearest
+available to each comparison year, not the years themselves. Check the dates
+before concluding a change happened inside the window.</p>
 <p class="intro">The commonest false positive here: a bare patch that was
 <em>already there</em> in the before image. If the crosshair sits on ground that
 was bare in both years, that is a <code>false_positive</code> however obvious the
