@@ -17,6 +17,9 @@ dependencies = [
     "shapely>=2.0",
     "typer>=0.12",
     "rich>=13.7",
+    # Used directly to download validation image chips. Arrives transitively via
+    # earthengine-api, but depending on it explicitly is the honest declaration.
+    "requests>=2.31",
 ]
 
 [project.optional-dependencies]

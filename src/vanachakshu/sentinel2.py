@@ -97,6 +97,37 @@ def add_indices(image: ee.Image) -> ee.Image:
     return image.addBands(ndvi).addBands(nbr)
 
 
+def rgb_composite(
+    geometry: ee.Geometry,
+    season: SeasonWindow,
+    year: int,
+    config: OpticalDetectionConfig | None = None,
+) -> ee.Image:
+    """True-colour composite for visual inspection, not for detection.
+
+    Separate from :func:`seasonal_composite` because that one deliberately
+    discards the raw bands and keeps only indices — the detector has no use for
+    red, green and blue, but a human does.
+
+    Same cloud masking and same seasonal window, so a pair of these from two
+    years is directly comparable by eye.
+    """
+    cfg = config if config is not None else OpticalDetectionConfig()
+    start, end = season.date_range_for_year(year)
+
+    collection = (
+        ee.ImageCollection(datasets.SENTINEL2_SR)
+        .filterBounds(geometry)
+        .filterDate(start, end)
+        .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", cfg.max_scene_cloud_pct))
+        .map(mask_clouds)
+        .select(["B4", "B3", "B2"])
+    )
+
+    result: ee.Image = collection.median().clip(geometry)
+    return result
+
+
 def seasonal_composite(
     geometry: ee.Geometry,
     season: SeasonWindow,

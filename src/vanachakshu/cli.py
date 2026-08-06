@@ -17,6 +17,7 @@ from rich.panel import Panel
 
 from vanachakshu import __version__
 from vanachakshu.alerts import AlertStore
+from vanachakshu.chips import download_chips, write_contact_sheet
 from vanachakshu.config import WESTERN_GHATS_CLEAR_SEASON, YELLAPUR_TALUK, AlertConfig
 from vanachakshu.diagnostics import all_passed, run_diagnostics
 from vanachakshu.gee import EarthEngineSetupError, initialize
@@ -28,6 +29,7 @@ from vanachakshu.validation import (
     precision_report,
     size_stratum,
     stratified_sample,
+    worksheet_alert_ids,
     write_worksheet,
 )
 
@@ -236,6 +238,66 @@ def validate_sample(
         "Leave genuinely ambiguous ones as 'unclear' rather than guessing — a forced\n"
         "call invents certainty, and how often it is unclear is itself a finding.[/dim]\n"
     )
+
+
+@app.command("validate-chips")
+def validate_chips(
+    worksheet: Annotated[Path, typer.Argument(help="Worksheet CSV from validate-sample.")],
+    baseline: Annotated[int | None, typer.Option(help="Earlier year to show.")] = None,
+    recent: Annotated[int | None, typer.Option(help="Later year to show.")] = None,
+    out_dir: Annotated[Path | None, typer.Option(help="Where to write chips and HTML.")] = None,
+) -> None:
+    """Fetch before/after image chips and build a review page.
+
+    The worksheet's Google Maps links are very high resolution but undated —
+    usually one to three years stale — so they answer "is there a clearing
+    here?" when the question is "did something change between these years?".
+    These chips are dated, cloud-masked, and shown side by side.
+    """
+    if not worksheet.is_file():
+        console.print(f"[red]No such worksheet:[/red] {worksheet}")
+        raise typer.Exit(1)
+
+    aoi = YELLAPUR_TALUK
+    _, default_recent = default_comparison_years(WESTERN_GHATS_CLEAR_SEASON, date.today())
+    recent = recent if recent is not None else default_recent
+    baseline = baseline if baseline is not None else recent - 1
+
+    store = AlertStore(store_path_for(aoi), AlertConfig())
+    store.load()
+    # Every row, not only reviewed ones — imagery is fetched before anyone
+    # reviews anything.
+    wanted = set(worksheet_alert_ids(worksheet))
+    alerts = [a for a in store.alerts if a.alert_id in wanted]
+
+    if not alerts:
+        console.print("[yellow]No matching detections found in the alert store.[/yellow]")
+        raise typer.Exit(1)
+
+    try:
+        initialize()
+    except EarthEngineSetupError as exc:
+        console.print(Panel(str(exc), border_style="yellow"))
+        raise typer.Exit(1) from exc
+
+    target = out_dir if out_dir is not None else Path("data") / "validation" / "chips"
+    console.print(f"\nFetching chips for {len(alerts)} detections ({baseline} vs {recent})...")
+
+    chipsets = download_chips(
+        alerts=alerts,
+        baseline_year=baseline,
+        recent_year=recent,
+        season=WESTERN_GHATS_CLEAR_SEASON,
+        out_dir=target,
+    )
+    page = write_contact_sheet(chipsets, target / "index.html")
+
+    complete = sum(c.is_complete for c in chipsets)
+    with_nicfi = sum(c.nicfi_path is not None for c in chipsets)
+    console.print(f"  both dated chips : {complete}/{len(chipsets)}")
+    console.print(f"  with NICFI <5 m  : {with_nicfi}/{len(chipsets)}")
+    console.print(f"\nreview page: {page}")
+    console.print(f"\n[dim]Open it with:  start {page}[/dim]\n")
 
 
 @app.command("validate-report")

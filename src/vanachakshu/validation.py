@@ -40,6 +40,7 @@ __all__ = [
     "size_stratum",
     "stratified_sample",
     "wilson_interval",
+    "worksheet_alert_ids",
     "write_worksheet",
 ]
 
@@ -243,6 +244,17 @@ def write_worksheet(alerts: Sequence[TrackedAlert], path: Path) -> Path:
                 }
             )
     return path
+
+
+def worksheet_alert_ids(path: Path) -> list[str]:
+    """Every alert id in a worksheet, filled in or not.
+
+    Distinct from :func:`load_verdicts`, which deliberately skips unreviewed
+    rows. Fetching imagery is the step that happens *before* anyone reviews
+    anything, so it needs the whole sample.
+    """
+    with path.open(newline="", encoding="utf-8") as handle:
+        return [row["alert_id"] for row in csv.DictReader(handle) if row.get("alert_id")]
 
 
 def load_verdicts(path: Path) -> list[ValidationRecord]:
