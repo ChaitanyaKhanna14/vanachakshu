@@ -18,6 +18,7 @@ tedious makes worse judgements.
 from __future__ import annotations
 
 import html
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -34,8 +35,23 @@ __all__ = [
     "ChipSet",
     "chip_bounds",
     "download_chips",
+    "esri_imagery_url",
     "write_contact_sheet",
 ]
+
+# Esri's World Imagery service, free and key-less. Sub-metre over much of India,
+# which is roughly twenty times sharper than Sentinel-2.
+#
+# It carries no date, so it cannot answer "did this change?" — only "what is
+# this place?". Those are different questions and the review page shows both:
+# the dated Sentinel-2 pair for the change, this for the identification. A
+# reviewer squinting at 10 m pixels cannot tell a plantation from regrowth, and
+# that distinction decides whether a detection counts at all.
+_ESRI_EXPORT = (
+    "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export"
+)
+
+_METRES_PER_DEGREE_LAT = 111_320.0
 
 # Half-width of the chip in metres. A 0.5 ha clearing is ~70 m across, so 250 m
 # shows it with enough surrounding forest to judge context — whether the patch
@@ -66,6 +82,23 @@ def chip_bounds(lon: float, lat: float, half_width_m: float = _CHIP_HALF_WIDTH_M
     return region
 
 
+def esri_imagery_url(
+    lon: float, lat: float, half_width_m: float = _CHIP_HALF_WIDTH_M, pixels: int = 512
+) -> str:
+    """Static sub-metre aerial image covering the same ground as the chips.
+
+    Deliberately the *same extent* as the Sentinel-2 pair, so the reviewer can
+    move their eye between them without re-orienting.
+    """
+    lat_span = half_width_m / _METRES_PER_DEGREE_LAT
+    lon_span = half_width_m / (_METRES_PER_DEGREE_LAT * math.cos(math.radians(lat)))
+    bbox = f"{lon - lon_span},{lat - lat_span},{lon + lon_span},{lat + lat_span}"
+    return (
+        f"{_ESRI_EXPORT}?bbox={bbox}&bboxSR=4326&imageSR=3857"
+        f"&size={pixels},{pixels}&format=png&f=image"
+    )
+
+
 @dataclass(frozen=True)
 class ChipSet:
     """The images gathered for one detection."""
@@ -76,6 +109,7 @@ class ChipSet:
     baseline_path: Path | None
     recent_path: Path | None
     nicfi_path: Path | None
+    highres_path: Path | None = None
 
     @property
     def is_complete(self) -> bool:
@@ -154,6 +188,11 @@ def download_chips(
             )
             nicfi_path = _fetch(url, out_dir / f"{alert.alert_id}-nicfi-{recent_year}.png")
 
+        highres = _fetch(
+            esri_imagery_url(alert.lon, alert.lat),
+            out_dir / f"{alert.alert_id}-highres.png",
+        )
+
         chipsets.append(
             ChipSet(
                 alert=alert,
@@ -162,6 +201,7 @@ def download_chips(
                 baseline_path=paths["before"],
                 recent_path=paths["after"],
                 nicfi_path=nicfi_path,
+                highres_path=highres,
             )
         )
 
@@ -174,8 +214,13 @@ _MISSING_CELL = '<div class="missing">no cloud-free<br>imagery</div>'
 def _cell(path: Path | None, caption: str) -> str:
     if path is None:
         return f"<figure>{_MISSING_CELL}<figcaption>{html.escape(caption)}</figcaption></figure>"
+    # The crosshair marks the detection's centre. Without it a reviewer has to
+    # guess which of several bare patches in the frame was actually flagged,
+    # and guessing wrong silently corrupts the verdict.
     return (
-        f'<figure><img src="{html.escape(path.name)}" alt="{html.escape(caption)}">'
+        f'<figure><div class="frame">'
+        f'<img src="{html.escape(path.name)}" alt="{html.escape(caption)}">'
+        f'<span class="crosshair"></span></div>'
         f"<figcaption>{html.escape(caption)}</figcaption></figure>"
     )
 
@@ -198,6 +243,8 @@ def write_contact_sheet(chipsets: list[ChipSet], path: Path) -> Path:
         ]
         if chips.nicfi_path is not None:
             cells.append(_cell(chips.nicfi_path, f"NICFI {chips.recent_year} (<5 m)"))
+        if chips.highres_path is not None:
+            cells.append(_cell(chips.highres_path, "sub-metre (undated)"))
 
         rows.append(
             f"""
@@ -229,8 +276,16 @@ def write_contact_sheet(chipsets: list[ChipSet], path: Path) -> Path:
   .meta {{ font-weight: normal; color: #999; margin-left: .75rem; }}
   .chips {{ display: flex; gap: 1rem; flex-wrap: wrap; }}
   figure {{ margin: 0; }}
-  img {{ width: {_CHIP_PIXELS}px; max-width: 100%; border-radius: 4px;
+  .frame {{ position: relative; width: {_CHIP_PIXELS}px; max-width: 100%; }}
+  img {{ width: 100%; display: block; border-radius: 4px;
          image-rendering: pixelated; background: #000; }}
+  /* Marks the detection centre. Several bare patches often sit in one frame;
+     without this the reviewer has to guess which was flagged. */
+  .crosshair {{ position: absolute; inset: 0; pointer-events: none; }}
+  .crosshair::before, .crosshair::after {{
+    content: ""; position: absolute; background: rgba(255,80,80,.85); }}
+  .crosshair::before {{ left: 50%; top: 42%; width: 1px; height: 16%; }}
+  .crosshair::after  {{ top: 50%; left: 42%; height: 1px; width: 16%; }}
   .missing {{ width: {_CHIP_PIXELS}px; height: {_CHIP_PIXELS}px; display: grid;
               place-items: center; background: #1a1a1a; border-radius: 4px;
               color: #666; text-align: center; }}
@@ -238,11 +293,15 @@ def write_contact_sheet(chipsets: list[ChipSet], path: Path) -> Path:
   .links a {{ color: #6cf; }}
 </style></head><body>
 <h1>Validation chips &mdash; {len(chipsets)} detections</h1>
-<p class="intro">Each row is one detection. Compare <strong>before</strong> and
-<strong>after</strong>: you are judging whether something <em>changed</em>, not
-whether a clearing exists today. Intact canopy looks bumpy and textured; cleared
-ground looks smooth, often with a straight edge. Plantations look too regular.
-Rock and riverbeds are irregular and follow natural lines.</p>
+<p class="intro">Each row is one detection, marked with a red crosshair. The two
+Sentinel-2 chips are 10&nbsp;m per pixel &mdash; blurry, but correctly dated, so they
+answer <strong>did this change?</strong> The sub-metre image is far sharper but
+carries no date, so it only answers <strong>what is this place?</strong> Use both.</p>
+<p class="intro">The commonest false positive here: a bare patch that was
+<em>already there</em> in the before image. If the crosshair sits on ground that
+was bare in both years, that is a <code>false_positive</code> however obvious the
+patch looks. Also watch for plantations &mdash; unnaturally regular rows or sharp
+rectangular blocks &mdash; which are not forest loss.</p>
 <p class="intro">Record <code>true_positive</code>, <code>false_positive</code>
 or <code>unclear</code> against each id in the worksheet CSV. Use
 <code>unclear</code> freely &mdash; it is excluded from the score, and guessing
