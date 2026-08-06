@@ -276,8 +276,11 @@ def write_contact_sheet(chipsets: list[ChipSet], path: Path) -> Path:
         cells = []
         for label, entry in (("before", chips.wayback_before), ("after", chips.wayback_after)):
             if entry is not None:
-                path, captured = entry
-                cells.append(_cell(path, f"{captured} ({label}, sub-metre)"))
+                # Named chip_path, not path: unpacking into `path` shadowed this
+                # function's output-file parameter, so the HTML was written into
+                # the last chip PNG and that image was silently destroyed.
+                chip_path, captured = entry
+                cells.append(_cell(chip_path, f"{captured} ({label}, sub-metre)"))
 
         cells += [
             _cell(chips.baseline_path, f"{chips.baseline_year} Sentinel-2 (10 m)"),
