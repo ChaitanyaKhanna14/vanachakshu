@@ -75,6 +75,21 @@ def landscape_normalised_drop(ndvi_drop: ee.Image, geometry: ee.Geometry) -> ee.
     The median is used rather than the mean because it is not dragged by the
     disturbed pixels themselves — the very thing being measured must not define
     the reference it is measured against.
+
+    **Measured effect**, threshold 0.15, 0.2 ha floor, 60 m tolerance:
+
+    ==========  ==========  ==========  =========
+    Pair        Absolute    Normalised  Precision
+    ==========  ==========  ==========  =========
+    2022→2023   304.4 ha    17.9 ha     0.000
+    2023→2024   5.9 ha      5.9 ha      0.000
+    2024→2025   2.1 ha      2.2 ha      0.565→0.583
+    ==========  ==========  ==========  =========
+
+    The drought-year artifact falls seventeenfold while the well-behaved years
+    are left alone and precision on the best pair improves slightly. That
+    asymmetry is the point: a correction that suppressed every year equally
+    would have removed the signal along with the artifact.
     """
     median_shift = ee.Number(
         ndvi_drop.reduceRegion(
