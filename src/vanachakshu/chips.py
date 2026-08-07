@@ -17,6 +17,7 @@ tedious makes worse judgements.
 
 from __future__ import annotations
 
+import hashlib
 import html
 import math
 from dataclasses import dataclass
@@ -349,6 +350,12 @@ def write_contact_sheet(chipsets: list[ChipSet], path: Path) -> Path:
         )
 
     complete = sum(c.is_complete for c in chipsets)
+    # Stable identifier for this set of detections, so saved verdicts belong to
+    # one sample rather than leaking into the next.
+    sample_id = hashlib.sha256(
+        ",".join(sorted(c.alert.alert_id for c in chipsets)).encode("utf-8")
+    ).hexdigest()[:12]
+
     document = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <title>Validation chips</title>
@@ -435,10 +442,17 @@ corrupts the number you are trying to measure.</p>
     Saved in this browser as you go &mdash; refreshing will not lose your work.</span>
 </div>
 <script>
+const SAMPLE_ID = "{sample_id}";
 // Verdicts are recorded here rather than in the spreadsheet because matching
-// thirteen ids across two windows by eye is where transcription errors happen.
+// ids across two windows by eye is where transcription errors happen.
 // localStorage means a closed tab does not discard a half-finished review.
-const KEY = "vanachakshu-verdicts";
+//
+// The key is scoped to this specific set of detections. A single shared key
+// meant a second review inherited the first one's verdicts and exported both
+// together — which happened, silently merging one detector's results into
+// another's. The scope is derived from the ids present, so the same sample
+// resumes and a different one starts clean.
+const KEY = "vanachakshu-verdicts-" + SAMPLE_ID;
 const state = JSON.parse(localStorage.getItem(KEY) || "{{}}");
 
 function refresh() {{

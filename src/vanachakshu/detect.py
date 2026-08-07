@@ -30,11 +30,13 @@ from typing import Final
 
 import ee
 
-from vanachakshu import embeddings, hansen, sentinel1
+from vanachakshu import embeddings, hansen, sentinel1, sentinel2
 from vanachakshu.config import (
+    WESTERN_GHATS_CLEAR_SEASON,
     EmbeddingDetectionConfig,
     OpticalDetectionConfig,
     RadarDetectionConfig,
+    SeasonWindow,
 )
 
 __all__ = [
@@ -63,6 +65,7 @@ def detect_embedding_disturbance(
     target_year: int,
     config: EmbeddingDetectionConfig | None = None,
     optical_config: OpticalDetectionConfig | None = None,
+    season: SeasonWindow | None = None,
 ) -> ee.Image:
     """Detect forest loss from movement in AlphaEarth embedding space.
 
@@ -108,6 +111,27 @@ def detect_embedding_disturbance(
     # flags every land-cover change, including cropland turning over.
     was_forest = hansen.forest_mask(base_year, optical_cfg)
     candidate = distance.gte(cfg.distance_threshold).And(was_forest)
+
+    # Direction gate. Embedding distance is direction-agnostic: it measures how
+    # far a pixel moved, not which way. Forest growing back moves the vector as
+    # far as forest being cleared, and the detector cannot tell them apart.
+    #
+    # Human validation found this directly — five of nine false positives were
+    # annotated "more trees grew" or "it feels less bare". Excluding them would
+    # have lifted precision from 0.53 to about 0.71 on that sample.
+    #
+    # NDVI supplies the sign that embeddings lack. Only the sign is used, not a
+    # magnitude threshold, so this discards regrowth without reintroducing the
+    # sensitivity limits that made NDVI a poor detector on its own.
+    if cfg.require_greenness_loss:
+        window = season if season is not None else WESTERN_GHATS_CLEAR_SEASON
+        base_ndvi = sentinel2.seasonal_composite(geometry, window, base_year, optical_cfg).select(
+            "NDVI"
+        )
+        target_ndvi = sentinel2.seasonal_composite(
+            geometry, window, target_year, optical_cfg
+        ).select("NDVI")
+        candidate = candidate.And(base_ndvi.subtract(target_ndvi).gt(0))
 
     patch_pixels = candidate.selfMask().connectedPixelCount(
         maxSize=_MAX_CONNECTED_PIXELS, eightConnected=True

@@ -269,6 +269,19 @@ class EmbeddingDetectionConfig(BaseModel):
             "deletes real clearings here."
         ),
     )
+    require_greenness_loss: bool = Field(
+        default=True,
+        description=(
+            "Require NDVI to have fallen, not merely changed. Embedding distance "
+            "is direction-agnostic — it measures how far a pixel moved, not "
+            "which way — so forest growing back scores the same as forest being "
+            "cleared. Human validation found five of nine false positives were "
+            "regrowth, annotated 'more trees grew'; excluding them lifts "
+            "precision from 0.53 to roughly 0.71. Only the sign of the NDVI "
+            "change is used, never a magnitude threshold, so this discards "
+            "regrowth without reintroducing NDVI's poor sensitivity."
+        ),
+    )
     pixel_size_m: float = Field(default=10.0, gt=0.0)
 
     @property
