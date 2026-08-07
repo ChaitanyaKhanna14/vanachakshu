@@ -220,13 +220,29 @@ class EmbeddingDetectionConfig(BaseModel):
     Replaces NDVI differencing, which measurement showed could not work at this
     base rate. Hansen records 28.6 ha of loss in 146,300 ha: one loss pixel per
     five thousand stable ones. Separability is the only lever against that, and
-    embeddings supply far more of it.
+    embeddings supply far more of it — Cohen's d of 2.20 against NDVI's 1.36.
 
-        feature       Cohen's d    precision    recall      F1
-        NDVI drop        1.36        0.583       0.013     0.025
-        embedding L2     2.20        0.773       0.129     0.221
+    **Accuracy depends strongly on the scale it is scored at, and the honest
+    figure is the one matching the pipeline's own 10 m output:**
 
-    Same AOI, same year pair, same 60 m tolerance, same scoring.
+        scored at   detected   precision   recall     F1
+        30 m          1.08 ha    0.583      0.205    0.304
+        10 m          3.00 ha    0.343      0.388    0.364
+
+    Scoring at 30 m — Hansen's native resolution, and the obvious choice for
+    comparing against it — discards most of what this detector emits, because
+    the median detection is 0.116 ha, roughly a single 30 m pixel. What survives
+    that filter is disproportionately correct, so 30 m flatters precision and
+    penalises recall. Neither number is wrong; they measure different things,
+    and only the 10 m one describes what the pipeline produces.
+
+    An earlier revision of this docstring claimed precision 0.773 from a 30 m
+    full-AOI run. That figure is not comparable to the pipeline's output and
+    should not be quoted.
+
+    The pattern also carries a tuning lead: small detections are
+    disproportionately false positives, so raising ``min_clearing_ha`` trades
+    recall for precision along a known axis.
     """
 
     model_config = ConfigDict(frozen=True)

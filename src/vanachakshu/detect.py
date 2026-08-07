@@ -72,7 +72,7 @@ def detect_embedding_disturbance(
     year does not.
 
     Measured against the NDVI detector it replaces, same AOI, same years, same
-    tolerance:
+    tolerance, **both scored at 30 m**:
 
     ==================  =========  ========  =====
     Detector            Precision  Recall    F1
@@ -80,6 +80,12 @@ def detect_embedding_disturbance(
     NDVI drop >= 0.15   0.583      0.013     0.025
     Embedding L2 >=0.45 0.773      0.129     0.221
     ==================  =========  ========  =====
+
+    Scored instead at the pipeline's own 10 m, the embedding detector gives
+    precision 0.343 and recall 0.388 — a different balance and a better F1
+    (0.364). See :class:`~vanachakshu.config.EmbeddingDetectionConfig` for why
+    the two disagree; in short, 30 m sampling discards most of what this
+    detector emits, and what survives is disproportionately correct.
 
     Simplicity is not an accident here: this thresholds a single derived band,
     and it outperformed a 130-feature random forest that could not be made to
