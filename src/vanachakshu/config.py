@@ -214,6 +214,54 @@ class OpticalDetectionConfig(BaseModel):
         return max(1, round(self.min_clearing_ha / px_area_ha))
 
 
+class EmbeddingDetectionConfig(BaseModel):
+    """Settings for the AlphaEarth embedding detector — the primary method.
+
+    Replaces NDVI differencing, which measurement showed could not work at this
+    base rate. Hansen records 28.6 ha of loss in 146,300 ha: one loss pixel per
+    five thousand stable ones. Separability is the only lever against that, and
+    embeddings supply far more of it.
+
+        feature       Cohen's d    precision    recall      F1
+        NDVI drop        1.36        0.583       0.013     0.025
+        embedding L2     2.20        0.773       0.129     0.221
+
+    Same AOI, same year pair, same 60 m tolerance, same scoring.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    distance_threshold: float = Field(
+        default=0.45,
+        gt=0.0,
+        description=(
+            "Euclidean distance in 64-dimension embedding space above which a "
+            "pixel is a candidate. Swept: 0.35 floods (precision 0.016), 0.55 "
+            "gives perfect precision at a third of the recall, 0.65 finds "
+            "nothing. 0.45 is the measured best balance."
+        ),
+    )
+    min_clearing_ha: float = Field(
+        default=0.05,
+        gt=0.0,
+        description=(
+            "Minimum connected patch, 5 pixels at 10 m. Far smaller than the "
+            "optical detector's 0.2 ha, and that is the point: at 0.2 ha every "
+            "embedding configuration collapses to zero detections. The "
+            "embedding signal is spatially tighter than NDVI's, so the large "
+            "patch requirement that NDVI needed for noise suppression simply "
+            "deletes real clearings here."
+        ),
+    )
+    pixel_size_m: float = Field(default=10.0, gt=0.0)
+
+    @property
+    def min_clearing_pixels(self) -> int:
+        """``min_clearing_ha`` as a whole number of pixels."""
+        px_area_ha = (self.pixel_size_m**2) / 10_000.0
+        return max(1, round(self.min_clearing_ha / px_area_ha))
+
+
 class RadarDetectionConfig(BaseModel):
     """Settings for the Sentinel-1 radar detector (Phase 3).
 

@@ -30,14 +30,19 @@ from typing import Final
 
 import ee
 
-from vanachakshu import hansen, sentinel1
-from vanachakshu.config import OpticalDetectionConfig, RadarDetectionConfig
+from vanachakshu import embeddings, hansen, sentinel1
+from vanachakshu.config import (
+    EmbeddingDetectionConfig,
+    OpticalDetectionConfig,
+    RadarDetectionConfig,
+)
 
 __all__ = [
     "DISTURBANCE_BAND",
     "RADAR_DISTURBANCE_BAND",
     "baseline_window",
     "detect_disturbance",
+    "detect_embedding_disturbance",
     "detect_radar_disturbance",
     "disturbance_patches",
     "summarise_patches",
@@ -50,6 +55,61 @@ RADAR_DISTURBANCE_BAND: Final = "radar_disturbed"
 # passes regardless, so counting beyond a few hundred pixels buys nothing and
 # costs compute.
 _MAX_CONNECTED_PIXELS: Final = 256
+
+
+def detect_embedding_disturbance(
+    geometry: ee.Geometry,
+    base_year: int,
+    target_year: int,
+    config: EmbeddingDetectionConfig | None = None,
+    optical_config: OpticalDetectionConfig | None = None,
+) -> ee.Image:
+    """Detect forest loss from movement in AlphaEarth embedding space.
+
+    **The primary detector.** Each 10 m pixel carries 64 numbers summarising a
+    year of fused Sentinel-1 and Sentinel-2 observation; a pixel that changes
+    land cover moves a long way in that space, and one that merely has a dry
+    year does not.
+
+    Measured against the NDVI detector it replaces, same AOI, same years, same
+    tolerance:
+
+    ==================  =========  ========  =====
+    Detector            Precision  Recall    F1
+    ==================  =========  ========  =====
+    NDVI drop >= 0.15   0.583      0.013     0.025
+    Embedding L2 >=0.45 0.773      0.129     0.221
+    ==================  =========  ========  =====
+
+    Simplicity is not an accident here: this thresholds a single derived band,
+    and it outperformed a 130-feature random forest that could not be made to
+    run inside Earth Engine's per-tile limits at all. The separability was
+    already in the features; the classifier was an optimisation mistaken for
+    the fix.
+
+    Returns ``disturbed`` plus ``emb_distance``, so downstream code can rank
+    detections by how far the pixel actually moved.
+    """
+    cfg = config if config is not None else EmbeddingDetectionConfig()
+    optical_cfg = optical_config if optical_config is not None else OpticalDetectionConfig()
+
+    distance = embeddings.euclidean_distance(
+        embeddings.annual(geometry, base_year),
+        embeddings.annual(geometry, target_year),
+    ).rename("emb_distance")
+
+    # Hansen still supplies the "was it forest" guard. Without it the detector
+    # flags every land-cover change, including cropland turning over.
+    was_forest = hansen.forest_mask(base_year, optical_cfg)
+    candidate = distance.gte(cfg.distance_threshold).And(was_forest)
+
+    patch_pixels = candidate.selfMask().connectedPixelCount(
+        maxSize=_MAX_CONNECTED_PIXELS, eightConnected=True
+    )
+    disturbed = candidate.And(patch_pixels.gte(cfg.min_clearing_pixels)).rename(DISTURBANCE_BAND)
+
+    result: ee.Image = disturbed.addBands(distance.updateMask(disturbed))
+    return result
 
 
 def landscape_normalised_drop(ndvi_drop: ee.Image, geometry: ee.Geometry) -> ee.Image:
