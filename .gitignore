@@ -34,3 +34,6 @@ data/output/
 *.tiff
 *.pmtiles
 !data/aoi/*.geojson
+
+# 5.4 MB of raw sample points; regenerate with scripts/tune_detector.py
+scripts/*.checkpoint.json

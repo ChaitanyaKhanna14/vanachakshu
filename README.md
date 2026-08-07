@@ -102,7 +102,53 @@ most of the output and flatters precision. Against Hansen the same detector
 scores 0.583 at 30 m and 0.343 at 10 m. Any number from this project should
 state its scale and its reference.
 
-## Measured accuracy against Hansen
+**Recall is low and stays low.** At the tuned operating point the detector finds
+about a third of recorded loss. That is a deliberate trade, not an oversight —
+see below.
+
+## Tuned accuracy against Hansen, at 10 m
+
+Parameters were swept over the full 1,463 km² AOI, 2024 vs 2025, using a
+weighted stratified sample at the pipeline's own 10 m resolution.
+
+| threshold | min patch | precision | 95% CI | recall |
+|---|---|---|---|---|
+| 0.35 | 0.05 ha | 0.012 | [0.011, 0.014] | 0.648 |
+| 0.40 | 0.05 ha | 0.168 | [0.101, 0.288] | 0.504 |
+| 0.45 | 0.05 ha | 0.319 | [0.154, 0.635] | 0.347 |
+| **0.45** | **0.20 ha** | **0.803** | **[0.531, 0.973]** | **0.320** |
+| 0.50 | 0.05 ha | *1.000* | *[0.203, 1.000]* | 0.238 |
+
+**The 1.000 in that last row is a measurement failure, not a result.** Every
+configuration above threshold 0.45 reports perfect precision because *zero*
+false-positive samples survived — there is nothing to divide by. Its interval
+runs down to 0.20. No number from this project quotes precision 1.000.
+
+The table above is measured with the direction gate **off**. The deployed
+configuration — threshold 0.45, 0.20 ha, gate **on** — falls into exactly the
+unmeasurable region: no false positive survived into the sample, so its
+precision cannot be resolved beyond `[0.238, 1.000]`. What can be said is that
+the gate only ever *removes* detections, so deployed precision is at least the
+0.803 measured without it, at a recall of 0.291 instead of 0.320.
+
+Recall and precision rest on very different footing. The sample holds 1,071
+loss points against a stratum of roughly 1,070 pixels, so **recall is measured,
+not extrapolated**. Precision extrapolates false-positive area from stable
+points each standing for up to 3.85 ha, which is why its intervals are wide.
+
+**The direction gate roughly doubles precision and costs about 16% of recall**
+— 0.012 → 0.026 at threshold 0.35, 0.168 → 0.229 at 0.40, the two levels with
+enough false positives to measure. An earlier 30 m measurement showed the same
+gain at *zero* recall cost; that was a scale artifact and is retracted. The
+gate is not free, and is kept because precision is worth more here.
+
+**Why precision is bought at recall's expense.** Recorded loss is 10.7 ha in
+106,543 ha of forest — one loss pixel per 9,939 stable. At that base rate a
+detector wrong on 0.1% of stable forest still buries every true detection ten
+to one. Precision is the only property that makes the output usable; recall is
+what it is bought with.
+
+## Earlier accuracy against Hansen
 
 **Optical baseline: precision 0.38, recall 0.34** against Hansen v1.13 over Yellapur
 Taluk, 2021 vs 2025, with a 60 m geolocation tolerance.

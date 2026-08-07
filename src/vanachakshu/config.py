@@ -222,27 +222,40 @@ class EmbeddingDetectionConfig(BaseModel):
     five thousand stable ones. Separability is the only lever against that, and
     embeddings supply far more of it — Cohen's d of 2.20 against NDVI's 1.36.
 
-    **Accuracy depends strongly on the scale it is scored at, and the honest
-    figure is the one matching the pipeline's own 10 m output:**
+    **Defaults are tuned against a weighted stratified sample at the pipeline's
+    own 10 m, over the full 1,463 km² AOI, 2024 vs 2025.** Recorded loss is
+    10.7 ha in 106,543 ha of forest — one loss pixel per 9,939 stable, worse
+    than the 1-in-5,000 assumed above. Selected rows:
 
-        scored at   detected   precision   recall     F1
-        30 m          1.08 ha    0.583      0.205    0.304
-        10 m          3.00 ha    0.343      0.388    0.364
+        threshold   min ha   gate   precision      95% CI       recall
+          0.35       0.05     no      0.012     [0.011, 0.014]   0.648
+          0.40       0.05     no      0.168     [0.101, 0.288]   0.504
+          0.45       0.05     no      0.319     [0.154, 0.635]   0.347
+          0.45       0.20     no      0.803     [0.531, 0.973]   0.320  <- best measured
+          0.45       0.40     no      0.956     [0.797, 0.999]   0.196
+          0.50       0.05     no      1.000     [0.203, 1.000]   0.238
 
-    Scoring at 30 m — Hansen's native resolution, and the obvious choice for
-    comparing against it — discards most of what this detector emits, because
-    the median detection is 0.116 ha, roughly a single 30 m pixel. What survives
-    that filter is disproportionately correct, so 30 m flatters precision and
-    penalises recall. Neither number is wrong; they measure different things,
-    and only the 10 m one describes what the pipeline produces.
+    **Read that last row as a warning, not a result.** Every configuration at
+    threshold 0.50 and above reports precision 1.000 because *zero* stable
+    sample points fired — the estimate has no false positives to divide by, so
+    it is a resolution floor rather than a measurement, and its interval runs
+    down to 0.20. Precision 1.000 is never quotable here.
 
-    An earlier revision of this docstring claimed precision 0.773 from a 30 m
-    full-AOI run. That figure is not comparable to the pipeline's output and
-    should not be quoted.
+    Recall is on much firmer footing than precision. The sample contains 1,071
+    loss points against a stratum of ~1,070 pixels, so essentially every
+    recorded-loss pixel in the taluk is in it and recall is measured rather
+    than extrapolated. Precision depends on false-positive area extrapolated
+    from stable points each standing for up to 3.85 ha, which is why the
+    intervals above are wide wherever detections are sparse.
 
-    The pattern also carries a tuning lead: small detections are
-    disproportionately false positives, so raising ``min_clearing_ha`` trades
-    recall for precision along a known axis.
+    Two prior claims in this docstring were wrong and are retracted:
+
+    * That precision was 0.773. That came from a 30 m run, where the median
+      0.116 ha detection vanishes entirely; 30 m flatters precision and
+      penalises recall, and is not comparable to what the pipeline emits.
+    * That 0.2 ha "collapses to zero detections". That was also a 30 m
+      artifact. At 10 m, 0.2 ha is the single largest precision lever
+      available — see ``min_clearing_ha``.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -252,21 +265,25 @@ class EmbeddingDetectionConfig(BaseModel):
         gt=0.0,
         description=(
             "Euclidean distance in 64-dimension embedding space above which a "
-            "pixel is a candidate. Swept: 0.35 floods (precision 0.016), 0.55 "
-            "gives perfect precision at a third of the recall, 0.65 finds "
-            "nothing. 0.45 is the measured best balance."
+            "pixel is a candidate. The dominant parameter by a wide margin: "
+            "0.35 floods (precision 0.012), 0.40 reaches 0.168, 0.45 reaches "
+            "0.803. Above 0.45 precision cannot be measured at all — no false "
+            "positives survive into the sample — while recall keeps falling, "
+            "so raising it further buys an unverifiable gain at a known cost."
         ),
     )
     min_clearing_ha: float = Field(
-        default=0.05,
+        default=0.20,
         gt=0.0,
         description=(
-            "Minimum connected patch, 5 pixels at 10 m. Far smaller than the "
-            "optical detector's 0.2 ha, and that is the point: at 0.2 ha every "
-            "embedding configuration collapses to zero detections. The "
-            "embedding signal is spatially tighter than NDVI's, so the large "
-            "patch requirement that NDVI needed for noise suppression simply "
-            "deletes real clearings here."
+            "Minimum connected patch, 20 pixels at 10 m. At threshold 0.45 "
+            "this is the largest single precision lever measured: 0.319 at "
+            "0.05 ha against 0.803 at 0.20 ha, for a recall cost of 0.347 to "
+            "0.320. Real clearings are contiguous while embedding noise is "
+            "speckle, so a patch requirement removes the second and keeps the "
+            "first. Independently, RADD reports 0.2 ha as its own accuracy "
+            "cliff; arriving at the same figure from a different method is "
+            "weak corroboration but not nothing."
         ),
     )
     require_greenness_loss: bool = Field(
@@ -276,10 +293,16 @@ class EmbeddingDetectionConfig(BaseModel):
             "is direction-agnostic — it measures how far a pixel moved, not "
             "which way — so forest growing back scores the same as forest being "
             "cleared. Human validation found five of nine false positives were "
-            "regrowth, annotated 'more trees grew'; excluding them lifts "
-            "precision from 0.53 to roughly 0.71. Only the sign of the NDVI "
-            "change is used, never a magnitude threshold, so this discards "
-            "regrowth without reintroducing NDVI's poor sensitivity."
+            "regrowth, annotated 'more trees grew'. Measured at 10 m, the gate "
+            "roughly doubles precision — 0.012 to 0.026 at threshold 0.35, "
+            "0.168 to 0.229 at 0.40, the two levels with enough false "
+            "positives to measure — and costs about 16% of recall. An earlier "
+            "30 m measurement showed the same precision gain at zero recall "
+            "cost; that was a scale artifact and the gate is not free. It is "
+            "still worth its cost under a precision-first operating point. "
+            "Only the sign of the NDVI change is used, never a magnitude "
+            "threshold, so this discards regrowth without reintroducing "
+            "NDVI's poor sensitivity."
         ),
     )
     pixel_size_m: float = Field(default=10.0, gt=0.0)
