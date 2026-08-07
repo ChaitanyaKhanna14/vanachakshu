@@ -26,7 +26,6 @@ publishable one on paper.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Final
 
 import ee
@@ -36,9 +35,10 @@ from vanachakshu.config import OpticalDetectionConfig
 
 __all__ = [
     "PROBABILITY_BAND",
-    "TrainingSample",
     "classify_change",
-    "sample_training_data",
+    "feature_names",
+    "sample_points",
+    "split_regions",
     "train",
 ]
 
@@ -51,15 +51,6 @@ _N_TREES: Final = 200
 # Fraction of the AOI held back for testing, split by longitude rather than at
 # random. See the module docstring on leakage.
 _TEST_FRACTION: Final = 0.3
-
-
-@dataclass(frozen=True)
-class TrainingSample:
-    """Labelled points, already split for honest evaluation."""
-
-    train: ee.FeatureCollection
-    test: ee.FeatureCollection
-    feature_names: list[str]
 
 
 def _label_image(base_year: int, target_year: int, config: OpticalDetectionConfig) -> ee.Image:
@@ -80,37 +71,40 @@ def _label_image(base_year: int, target_year: int, config: OpticalDetectionConfi
     return loss.rename("label").updateMask(loss.Or(stable))
 
 
-def sample_training_data(
+def feature_names() -> list[str]:
+    """Every column the classifier is trained on, in a stable order."""
+    names = [*embeddings.EMBEDDING_BANDS, *[f"D{i:02d}" for i in range(64)]]
+    return [*names, "emb_euclid", "emb_cosine"]
+
+
+def sample_points(
     geometry: ee.Geometry,
     base_year: int,
     target_year: int,
-    points_per_class: int = 3000,
+    points_per_class: int = 1500,
     seed: int = 42,
     config: OpticalDetectionConfig | None = None,
-) -> TrainingSample:
-    """Draw balanced, spatially split training points.
+) -> ee.FeatureCollection:
+    """Draw balanced labelled points from one region.
 
-    ``points_per_class`` is deliberately equal across classes. The real ratio is
-    about 1:5000, and a classifier trained on that learns to say "stable"
-    always. Balancing is standard for training; the evaluation elsewhere uses
-    the true ratio.
+    ``points_per_class`` is equal across classes on purpose. The real ratio is
+    about 1:5000, and a classifier trained on that learns to answer "stable"
+    always. Balancing is standard for training; evaluation elsewhere uses the
+    true ratio.
+
+    Sampling one region per call, rather than the whole AOI at once, is what
+    keeps this inside Earth Engine's limits: a 130-band stack over 1,463 km²
+    exceeded the per-tile output ceiling, and raising tileScale far enough to
+    fix that made the request time out instead. Two smaller requests succeed
+    where one large one cannot.
     """
     cfg = config if config is not None else OpticalDetectionConfig()
 
-    features = embeddings.change_stack(geometry, base_year, target_year)
-    labels = _label_image(base_year, target_year, cfg)
+    stacked = embeddings.change_stack(geometry, base_year, target_year).addBands(
+        _label_image(base_year, target_year, cfg)
+    )
 
-    # Longitude of the split line: everything west trains, everything east
-    # tests. A random split would put adjacent — effectively duplicate — pixels
-    # on both sides.
-    bounds = geometry.bounds().coordinates().get(0)
-    west = ee.Number(ee.List(ee.List(bounds).get(0)).get(0))
-    east = ee.Number(ee.List(ee.List(bounds).get(2)).get(0))
-    split_lon = west.add(east.subtract(west).multiply(1 - _TEST_FRACTION))
-
-    stacked = features.addBands(labels).addBands(ee.Image.pixelLonLat().select("longitude"))
-
-    sample = stacked.stratifiedSample(
+    result: ee.FeatureCollection = stacked.stratifiedSample(
         numPoints=points_per_class,
         classBand="label",
         region=geometry,
@@ -118,20 +112,27 @@ def sample_training_data(
         seed=seed,
         geometries=False,
         dropNulls=True,
-        tileScale=4,
+        tileScale=8,
+    )
+    return result
+
+
+def split_regions(bbox_coords: list[float]) -> tuple[ee.Geometry, ee.Geometry]:
+    """Split an AOI west/east into train and test regions.
+
+    Split by location, never at random. Neighbouring pixels are near-duplicates,
+    so a random split tests the classifier on ground it effectively memorised —
+    which routinely turns a broken model into a publishable-looking one.
+    """
+    west, south, east, north = bbox_coords
+    line = west + (east - west) * (1 - _TEST_FRACTION)
+    return (
+        ee.Geometry.Rectangle([west, south, line, north]),
+        ee.Geometry.Rectangle([line, south, east, north]),
     )
 
-    names = [*embeddings.EMBEDDING_BANDS, *[f"D{i:02d}" for i in range(64)]]
-    names += ["emb_euclid", "emb_cosine"]
 
-    return TrainingSample(
-        train=sample.filter(ee.Filter.lt("longitude", split_lon)),
-        test=sample.filter(ee.Filter.gte("longitude", split_lon)),
-        feature_names=names,
-    )
-
-
-def train(sample: TrainingSample) -> ee.Classifier:
+def train(training_points: ee.FeatureCollection) -> ee.Classifier:
     """Fit a random forest that outputs a probability, not a hard class.
 
     Probability rather than a label because the operating point is a decision
@@ -143,9 +144,9 @@ def train(sample: TrainingSample) -> ee.Classifier:
         ee.Classifier.smileRandomForest(numberOfTrees=_N_TREES, seed=42)
         .setOutputMode("PROBABILITY")
         .train(
-            features=sample.train,
+            features=training_points,
             classProperty="label",
-            inputProperties=sample.feature_names,
+            inputProperties=feature_names(),
         )
     )
     return classifier
