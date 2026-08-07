@@ -35,9 +35,11 @@ __all__ = [
     "EMBEDDING_ASSET",
     "EMBEDDING_BANDS",
     "annual",
+    "available_years",
     "change_stack",
     "cosine_distance",
     "euclidean_distance",
+    "latest_available_year",
 ]
 
 EMBEDDING_ASSET: Final = "GOOGLE/SATELLITE_EMBEDDING/V1/ANNUAL"
@@ -46,18 +48,60 @@ EMBEDDING_ASSET: Final = "GOOGLE/SATELLITE_EMBEDDING/V1/ANNUAL"
 EMBEDDING_BANDS: Final[tuple[str, ...]] = tuple(f"A{i:02d}" for i in range(64))
 
 
+def available_years(geometry: ee.Geometry) -> list[int]:
+    """Years for which an embedding exists over ``geometry``, ascending.
+
+    **The embeddings lag.** They are published annually and the most recent year
+    appears months after it ends, so the newest comparable pair is always at
+    least a year behind today. This is the detector's binding latency
+    constraint, and it is worth knowing before a run fails with an opaque
+    "Image with no bands" error at the point of use.
+    """
+    stamps = (
+        ee.ImageCollection(EMBEDDING_ASSET)
+        .filterBounds(geometry)
+        .aggregate_array("system:time_start")
+        .getInfo()
+    ) or []
+    return sorted({ee.Date(stamp).get("year").getInfo() for stamp in stamps})
+
+
+def latest_available_year(geometry: ee.Geometry) -> int:
+    """Most recent year with an embedding over ``geometry``."""
+    years = available_years(geometry)
+    if not years:
+        raise ValueError(
+            f"no embeddings from {EMBEDDING_ASSET} cover this area — "
+            "check the AOI, or the collection may not extend here"
+        )
+    return years[-1]
+
+
 def annual(geometry: ee.Geometry, year: int) -> ee.Image:
     """The embedding image for one calendar year.
 
     Mosaicked because the collection is tiled and an AOI usually straddles
     several tiles — the same trap as the DEM, where loading a single image
     silently covers only part of the area.
+
+    Raises for a year with no embedding rather than returning an empty image.
+    Earth Engine's own failure here is "Band pattern 'A00' was applied to an
+    Image with no bands", raised far downstream at the point of use, which says
+    nothing about the actual cause: the year simply is not published yet.
     """
     collection = (
         ee.ImageCollection(EMBEDDING_ASSET)
         .filterBounds(geometry)
         .filterDate(f"{year}-01-01", f"{year + 1}-01-01")
     )
+    if collection.size().getInfo() == 0:
+        available = available_years(geometry)
+        raise ValueError(
+            f"no satellite embedding for {year}. Available: "
+            f"{available[0]}-{available[-1] if available else '?'}. "
+            "AlphaEarth is published annually and lags by roughly a year, so "
+            "the newest comparable pair is always behind the current date."
+        )
     result: ee.Image = collection.mosaic().select(list(EMBEDDING_BANDS))
     return result
 

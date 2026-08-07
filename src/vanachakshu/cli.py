@@ -11,11 +11,12 @@ from datetime import date
 from pathlib import Path
 from typing import Annotated
 
+import ee
 import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from vanachakshu import __version__
+from vanachakshu import __version__, embeddings
 from vanachakshu.alerts import AlertStore
 from vanachakshu.chips import download_chips, write_contact_sheet
 from vanachakshu.config import WESTERN_GHATS_CLEAR_SEASON, YELLAPUR_TALUK, AlertConfig
@@ -138,19 +139,31 @@ def run(
     aoi = YELLAPUR_TALUK
     today = date.today()
 
-    # The scheduled job passes neither, so it works them out itself. Baseline is
-    # derived from the *resolved* recent year, so `--recent 2023` alone still
-    # gives a sensible 2022 baseline rather than one anchored to today.
-    _, default_recent = default_comparison_years(WESTERN_GHATS_CLEAR_SEASON, today)
-    recent = recent if recent is not None else default_recent
-    baseline = baseline if baseline is not None else recent - 1
-
     try:
         initialize()
     except EarthEngineSetupError as exc:
         console.print("[bold red]Earth Engine is not usable.[/bold red]")
         console.print(Panel(str(exc), border_style="yellow"))
         raise typer.Exit(1) from exc
+
+    # Default to the newest year the embeddings actually cover, not to the
+    # calendar. AlphaEarth is published annually with roughly a year's lag, so
+    # asking for the current year fails with an opaque "Image with no bands"
+    # error deep inside detection. The lag is a real limit on how current an
+    # alert can be, and it is surfaced rather than worked around.
+    geometry = ee.Geometry.Rectangle(YELLAPUR_TALUK.bbox.as_ee_coords())
+    newest = embeddings.latest_available_year(geometry)
+
+    _, calendar_recent = default_comparison_years(WESTERN_GHATS_CLEAR_SEASON, today)
+    recent = recent if recent is not None else min(calendar_recent, newest)
+    baseline = baseline if baseline is not None else recent - 1
+
+    if recent < calendar_recent:
+        console.print(
+            f"[yellow]Embeddings reach {newest}; comparing {baseline} vs {recent} "
+            f"rather than {calendar_recent}. Detections lag by "
+            f"{calendar_recent - recent} year(s).[/yellow]"
+        )
 
     store = AlertStore(store_path_for(aoi, store_dir), AlertConfig())
 
