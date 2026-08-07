@@ -42,9 +42,11 @@ jobs:
   detect:
     name: Detect and record disturbances
     runs-on: ubuntu-latest
-    # Earth Engine calls over a full AOI are slow; the default 6 h is far more
-    # than needed, and a stuck run should fail rather than hold the lock.
-    timeout-minutes: 45
+    # The embedding detector takes ~19 minutes locally: it loads 128 bands (two
+    # years of 64) and vectorises across 16 tiles. GitHub runners are slower
+    # than a laptop, so 45 minutes left too little headroom — a timeout here
+    # loses the cycle entirely rather than degrading.
+    timeout-minutes: 90
 
     steps:
       - name: Check out repository

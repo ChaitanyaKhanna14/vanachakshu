@@ -15,12 +15,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 import ee
 
 from vanachakshu.alerts import AlertStore, TrackedAlert, detections_from_patch_records
-from vanachakshu.config import AreaOfInterest, EmbeddingDetectionConfig, SeasonWindow
+from vanachakshu.config import (
+    AreaOfInterest,
+    BoundingBox,
+    EmbeddingDetectionConfig,
+    SeasonWindow,
+)
 from vanachakshu.detect import detect_embedding_disturbance, disturbance_patches
 
 __all__ = [
@@ -53,6 +58,38 @@ def default_comparison_years(
         raise ValueError(f"gap_years must be at least 1, got {gap_years}")
     recent = season.most_recent_complete_year(today)
     return recent - gap_years, recent
+
+
+# Grid divisions per axis when vectorising. Four gives sixteen tiles of roughly
+# 90 km² each, which stays inside Earth Engine's per-request budget for a
+# 128-band computation while keeping the number of round-trips manageable.
+_VECTORISE_TILES: Final = 4
+
+
+def _grid(bbox: BoundingBox, divisions: int) -> list[ee.Geometry]:
+    """Split a bounding box into a ``divisions`` by ``divisions`` grid.
+
+    Tiles share edges, so a clearing straddling a boundary is vectorised twice
+    as two partial polygons. Both land within the alert store's dedup radius of
+    each other and merge into one alert, so the seam does not produce duplicates
+    — but it does mean a straddling clearing's reported area is the larger
+    fragment rather than the whole, which is a small and deliberate
+    underestimate rather than an error.
+    """
+    lon_step = (bbox.east - bbox.west) / divisions
+    lat_step = (bbox.north - bbox.south) / divisions
+    return [
+        ee.Geometry.Rectangle(
+            [
+                bbox.west + i * lon_step,
+                bbox.south + j * lat_step,
+                bbox.west + (i + 1) * lon_step,
+                bbox.south + (j + 1) * lat_step,
+            ]
+        )
+        for i in range(divisions)
+        for j in range(divisions)
+    ]
 
 
 def store_path_for(aoi: AreaOfInterest, root: Path | None = None) -> Path:
@@ -131,13 +168,22 @@ def fetch_patch_records(
         )
 
     cfg = config if config is not None else EmbeddingDetectionConfig()
-    geometry = ee.Geometry.Rectangle(aoi.bbox.as_ee_coords())
 
-    disturbance = detect_embedding_disturbance(geometry, baseline_year, recent_year, cfg)
-    patches = disturbance_patches(disturbance, geometry, cfg)
+    # Fetched tile by tile rather than in one request. The embedding detector
+    # loads 128 bands — two years of 64 — before differencing, and vectorising
+    # that across the whole AOI exceeds Earth Engine's memory budget; raising
+    # tileScale far enough to fix that makes the request time out instead.
+    #
+    # Splitting into separate requests is the same remedy that fixed training
+    # sample extraction. Detections are sparse — a couple of hectares in
+    # 146,000 — so most tiles are empty and cheap.
+    features: list[dict[str, Any]] = []
+    for tile in _grid(aoi.bbox, _VECTORISE_TILES):
+        disturbance = detect_embedding_disturbance(tile, baseline_year, recent_year, cfg)
+        patches = disturbance_patches(disturbance, tile, cfg)
+        collection: dict[str, Any] = patches.getInfo() or {}
+        features.extend(collection.get("features", []))
 
-    collection: dict[str, Any] = patches.getInfo() or {}
-    features: list[dict[str, Any]] = collection.get("features", [])
     return features
 
 

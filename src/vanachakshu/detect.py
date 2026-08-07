@@ -249,6 +249,11 @@ def disturbance_patches(
             eightConnected=True,
             labelProperty="label",
             maxPixels=int(1e9),
+            # The embedding detector loads 128 bands (two years of 64) before
+            # differencing, which exceeds the default memory budget over an AOI
+            # this size. Splitting into more, smaller tiles is the standard
+            # remedy and changes nothing about the result.
+            tileScale=8,
         )
     )
 
