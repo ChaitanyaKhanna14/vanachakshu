@@ -223,7 +223,7 @@ def detect_disturbance(
 def disturbance_patches(
     disturbance: ee.Image,
     geometry: ee.Geometry,
-    config: OpticalDetectionConfig | None = None,
+    config: OpticalDetectionConfig | EmbeddingDetectionConfig | None = None,
 ) -> ee.FeatureCollection:
     """Convert the disturbance mask into polygons carrying real hectare figures.
 
@@ -231,8 +231,13 @@ def disturbance_patches(
     returns square metres. This is the authoritative figure — deliberately not
     "pixel count x 100", which would ignore the fact that a 10 m pixel is not
     exactly 100 m2 once projected.
+
+    Accepts either detector's config because the minimum patch size differs
+    sharply between them: 0.2 ha for NDVI, 0.05 ha for embeddings. Sharing one
+    default across both would silently zero out the embedding detector, which
+    is exactly the mistake that nearly hid its improvement.
     """
-    cfg = config if config is not None else OpticalDetectionConfig()
+    cfg = config if config is not None else EmbeddingDetectionConfig()
 
     vectors = (
         disturbance.select(DISTURBANCE_BAND)

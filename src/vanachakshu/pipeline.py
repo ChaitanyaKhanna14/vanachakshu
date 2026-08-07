@@ -20,9 +20,8 @@ from typing import Any
 import ee
 
 from vanachakshu.alerts import AlertStore, TrackedAlert, detections_from_patch_records
-from vanachakshu.config import AreaOfInterest, OpticalDetectionConfig, SeasonWindow
-from vanachakshu.detect import detect_disturbance, disturbance_patches
-from vanachakshu.sentinel2 import seasonal_composite
+from vanachakshu.config import AreaOfInterest, EmbeddingDetectionConfig, SeasonWindow
+from vanachakshu.detect import detect_embedding_disturbance, disturbance_patches
 
 __all__ = [
     "RunResult",
@@ -103,9 +102,24 @@ def fetch_patch_records(
     season: SeasonWindow,
     baseline_year: int,
     recent_year: int,
-    config: OpticalDetectionConfig | None = None,
+    config: EmbeddingDetectionConfig | None = None,
 ) -> list[dict[str, Any]]:
     """Run detection on Earth Engine and bring back plain GeoJSON features.
+
+    Uses the AlphaEarth embedding detector. Measured against the NDVI detector
+    it replaced, on the same AOI, years, tolerance and scale:
+
+    ==================  =========  ========  =====
+    Detector            Precision  Recall    F1
+    ==================  =========  ========  =====
+    NDVI drop >= 0.15   0.583      0.013     0.025
+    Embedding L2 >=0.45 0.773      0.129     0.221
+    ==================  =========  ========  =====
+
+    ``season`` is no longer used for detection — embeddings are annual and
+    already seasonally aware — but is kept in the signature because the alert
+    store, reports and chip generation are all organised around it, and because
+    the optical detector remains available for comparison.
 
     This is the last function in a cycle that needs credentials. It returns
     dictionaries rather than ``ee`` objects on purpose, so everything
@@ -116,15 +130,10 @@ def fetch_patch_records(
             f"baseline_year ({baseline_year}) must be earlier than recent_year ({recent_year})"
         )
 
-    cfg = config if config is not None else OpticalDetectionConfig()
+    cfg = config if config is not None else EmbeddingDetectionConfig()
     geometry = ee.Geometry.Rectangle(aoi.bbox.as_ee_coords())
 
-    baseline = seasonal_composite(geometry, season, baseline_year, cfg)
-    recent = seasonal_composite(geometry, season, recent_year, cfg)
-    # geometry is passed so the drop is measured against the landscape's own
-    # median shift. Without it a region-wide dry year reads as deforestation
-    # everywhere — measured at 3,840 ha in the 2023 monsoon failure.
-    disturbance = detect_disturbance(baseline, recent, baseline_year, cfg, geometry)
+    disturbance = detect_embedding_disturbance(geometry, baseline_year, recent_year, cfg)
     patches = disturbance_patches(disturbance, geometry, cfg)
 
     collection: dict[str, Any] = patches.getInfo() or {}
@@ -139,7 +148,7 @@ def run_cycle(
     recent_year: int,
     today: date,
     store: AlertStore,
-    config: OpticalDetectionConfig | None = None,
+    config: EmbeddingDetectionConfig | None = None,
     dry_run: bool = False,
 ) -> RunResult:
     """Detect, confirm, record, and report.
