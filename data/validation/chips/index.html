@@ -26,7 +26,27 @@
               place-items: center; background: #1a1a1a; border-radius: 4px;
               color: #666; text-align: center; }
   figcaption { color: #999; font-size: .85rem; margin-top: .35rem; }
-  .links a { color: #6cf; }
+  .verdict { display: flex; gap: .5rem; align-items: center; margin-top: .9rem;
+              flex-wrap: wrap; }
+  .verdict button { font: inherit; padding: .45rem .9rem; border-radius: 4px;
+    border: 1px solid #444; background: #1c1c1c; color: #ddd; cursor: pointer; }
+  .verdict button:hover { border-color: #777; }
+  .verdict button.on { color: #fff; }
+  .verdict button.on[data-v="true_positive"]  { background:#1d4b25; border-color:#3a9c4a; }
+  .verdict button.on[data-v="false_positive"] { background:#5a2020; border-color:#b04a4a; }
+  .verdict button.on[data-v="unclear"]        { background:#4a411a; border-color:#a89234; }
+  .verdict input { font: inherit; flex: 1; min-width: 16rem; padding: .45rem .6rem;
+    background:#1c1c1c; border:1px solid #444; border-radius:4px; color:#ddd; }
+  .verdict a { color:#6cf; font-size:.85rem; }
+  section.done { opacity: .55; }
+  section.done:hover { opacity: 1; }
+  #bar { position: sticky; bottom: 0; background:#181818; border-top:1px solid #333;
+    padding: .8rem 1rem; display:flex; gap:1rem; align-items:center;
+    margin: 2rem -2rem -2rem; }
+  #bar button { font: inherit; padding:.5rem 1rem; border-radius:4px; border:0;
+    background:#2b6cb0; color:#fff; cursor:pointer; }
+  #bar button:disabled { background:#333; color:#777; cursor:not-allowed; }
+  #count { color:#aaa; }
 </style></head><body>
 <h1>Validation chips &mdash; 13 detections</h1>
 <p class="intro">Each row is one detection, marked with a red crosshair.</p>
@@ -57,147 +77,287 @@ or <code>unclear</code> against each id in the worksheet CSV. Use
 corrupts the number you are trying to measure.</p>
 <p class="intro">13 of 13 have both dated chips.</p>
 
-    <section>
+    <section data-id="0b99c714fdef47cf" data-stratum="0.5_to_1ha"
+             data-area="0.887">
       <h2><code>0b99c714fdef47cf</code>
         <span class="meta">0.89 ha &middot;
         14.94873, 74.63437 &middot;
         first seen 2026-08-04</span></h2>
       <div class="chips"><figure><div class="frame"><img src="0b99c714fdef47cf-before-2025.png" alt="2025 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2025 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="0b99c714fdef47cf-after-2026.png" alt="2026 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2026 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="0b99c714fdef47cf-wayback-after.png" alt="sub-metre (undated) — what is this place?"><span class="crosshair"></span></div><figcaption>sub-metre (undated) — what is this place?</figcaption></figure></div>
-      <p class="links">
-        <a href="https://www.google.com/maps/@14.948730,74.634370,16z/data=!3m1!1e3" target="_blank">
-          high-resolution view (undated)</a>
-      </p>
+      <div class="verdict">
+        <button data-v="true_positive">Real clearing</button>
+        <button data-v="false_positive">Not clearing</button>
+        <button data-v="unclear">Unclear</button>
+        <input type="text"
+               placeholder="note &mdash; e.g. plantation rows, already bare, quarry">
+        <a href="https://www.google.com/maps/@14.948730,74.634370,16z/data=!3m1!1e3"
+           target="_blank">open in maps</a>
+      </div>
     </section>
-    <section>
+    <section data-id="1c1e39f9d1cad868" data-stratum="0.5_to_1ha"
+             data-area="0.511">
       <h2><code>1c1e39f9d1cad868</code>
         <span class="meta">0.51 ha &middot;
         15.00569, 74.72723 &middot;
         first seen 2026-08-04</span></h2>
       <div class="chips"><figure><div class="frame"><img src="1c1e39f9d1cad868-before-2025.png" alt="2025 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2025 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="1c1e39f9d1cad868-after-2026.png" alt="2026 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2026 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="1c1e39f9d1cad868-wayback-after.png" alt="sub-metre (undated) — what is this place?"><span class="crosshair"></span></div><figcaption>sub-metre (undated) — what is this place?</figcaption></figure></div>
-      <p class="links">
-        <a href="https://www.google.com/maps/@15.005687,74.727230,16z/data=!3m1!1e3" target="_blank">
-          high-resolution view (undated)</a>
-      </p>
+      <div class="verdict">
+        <button data-v="true_positive">Real clearing</button>
+        <button data-v="false_positive">Not clearing</button>
+        <button data-v="unclear">Unclear</button>
+        <input type="text"
+               placeholder="note &mdash; e.g. plantation rows, already bare, quarry">
+        <a href="https://www.google.com/maps/@15.005687,74.727230,16z/data=!3m1!1e3"
+           target="_blank">open in maps</a>
+      </div>
     </section>
-    <section>
+    <section data-id="3aad293b1f7961ed" data-stratum="0.5_to_1ha"
+             data-area="0.665">
       <h2><code>3aad293b1f7961ed</code>
         <span class="meta">0.66 ha &middot;
         15.02649, 74.63576 &middot;
         first seen 2026-08-04</span></h2>
       <div class="chips"><figure><div class="frame"><img src="3aad293b1f7961ed-before-2025.png" alt="2025 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2025 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="3aad293b1f7961ed-after-2026.png" alt="2026 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2026 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="3aad293b1f7961ed-wayback-after.png" alt="sub-metre (undated) — what is this place?"><span class="crosshair"></span></div><figcaption>sub-metre (undated) — what is this place?</figcaption></figure></div>
-      <p class="links">
-        <a href="https://www.google.com/maps/@15.026492,74.635760,16z/data=!3m1!1e3" target="_blank">
-          high-resolution view (undated)</a>
-      </p>
+      <div class="verdict">
+        <button data-v="true_positive">Real clearing</button>
+        <button data-v="false_positive">Not clearing</button>
+        <button data-v="unclear">Unclear</button>
+        <input type="text"
+               placeholder="note &mdash; e.g. plantation rows, already bare, quarry">
+        <a href="https://www.google.com/maps/@15.026492,74.635760,16z/data=!3m1!1e3"
+           target="_blank">open in maps</a>
+      </div>
     </section>
-    <section>
+    <section data-id="51866b265fb6837f" data-stratum="0.5_to_1ha"
+             data-area="0.636">
       <h2><code>51866b265fb6837f</code>
         <span class="meta">0.64 ha &middot;
         14.87992, 74.56649 &middot;
         first seen 2026-08-04</span></h2>
       <div class="chips"><figure><div class="frame"><img src="51866b265fb6837f-before-2025.png" alt="2025 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2025 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="51866b265fb6837f-after-2026.png" alt="2026 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2026 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="51866b265fb6837f-wayback-after.png" alt="sub-metre (undated) — what is this place?"><span class="crosshair"></span></div><figcaption>sub-metre (undated) — what is this place?</figcaption></figure></div>
-      <p class="links">
-        <a href="https://www.google.com/maps/@14.879923,74.566485,16z/data=!3m1!1e3" target="_blank">
-          high-resolution view (undated)</a>
-      </p>
+      <div class="verdict">
+        <button data-v="true_positive">Real clearing</button>
+        <button data-v="false_positive">Not clearing</button>
+        <button data-v="unclear">Unclear</button>
+        <input type="text"
+               placeholder="note &mdash; e.g. plantation rows, already bare, quarry">
+        <a href="https://www.google.com/maps/@14.879923,74.566485,16z/data=!3m1!1e3"
+           target="_blank">open in maps</a>
+      </div>
     </section>
-    <section>
+    <section data-id="51d6292e89048000" data-stratum="1_to_5ha"
+             data-area="3.547">
       <h2><code>51d6292e89048000</code>
         <span class="meta">3.55 ha &middot;
         14.96930, 74.71765 &middot;
         first seen 2026-08-04</span></h2>
       <div class="chips"><figure><div class="frame"><img src="51d6292e89048000-before-2025.png" alt="2025 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2025 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="51d6292e89048000-after-2026.png" alt="2026 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2026 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="51d6292e89048000-wayback-after.png" alt="sub-metre (undated) — what is this place?"><span class="crosshair"></span></div><figcaption>sub-metre (undated) — what is this place?</figcaption></figure></div>
-      <p class="links">
-        <a href="https://www.google.com/maps/@14.969298,74.717653,16z/data=!3m1!1e3" target="_blank">
-          high-resolution view (undated)</a>
-      </p>
+      <div class="verdict">
+        <button data-v="true_positive">Real clearing</button>
+        <button data-v="false_positive">Not clearing</button>
+        <button data-v="unclear">Unclear</button>
+        <input type="text"
+               placeholder="note &mdash; e.g. plantation rows, already bare, quarry">
+        <a href="https://www.google.com/maps/@14.969298,74.717653,16z/data=!3m1!1e3"
+           target="_blank">open in maps</a>
+      </div>
     </section>
-    <section>
+    <section data-id="6c433d9a6d81bc1b" data-stratum="0.5_to_1ha"
+             data-area="0.540">
       <h2><code>6c433d9a6d81bc1b</code>
         <span class="meta">0.54 ha &middot;
         15.00474, 74.66772 &middot;
         first seen 2026-08-04</span></h2>
       <div class="chips"><figure><div class="frame"><img src="6c433d9a6d81bc1b-before-2025.png" alt="2025 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2025 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="6c433d9a6d81bc1b-after-2026.png" alt="2026 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2026 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="6c433d9a6d81bc1b-wayback-after.png" alt="sub-metre (undated) — what is this place?"><span class="crosshair"></span></div><figcaption>sub-metre (undated) — what is this place?</figcaption></figure></div>
-      <p class="links">
-        <a href="https://www.google.com/maps/@15.004739,74.667722,16z/data=!3m1!1e3" target="_blank">
-          high-resolution view (undated)</a>
-      </p>
+      <div class="verdict">
+        <button data-v="true_positive">Real clearing</button>
+        <button data-v="false_positive">Not clearing</button>
+        <button data-v="unclear">Unclear</button>
+        <input type="text"
+               placeholder="note &mdash; e.g. plantation rows, already bare, quarry">
+        <a href="https://www.google.com/maps/@15.004739,74.667722,16z/data=!3m1!1e3"
+           target="_blank">open in maps</a>
+      </div>
     </section>
-    <section>
+    <section data-id="7081a27932b2236e" data-stratum="1_to_5ha"
+             data-area="1.350">
       <h2><code>7081a27932b2236e</code>
         <span class="meta">1.35 ha &middot;
         14.94628, 74.63245 &middot;
         first seen 2026-08-04</span></h2>
       <div class="chips"><figure><div class="frame"><img src="7081a27932b2236e-before-2025.png" alt="2025 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2025 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="7081a27932b2236e-after-2026.png" alt="2026 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2026 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="7081a27932b2236e-wayback-after.png" alt="sub-metre (undated) — what is this place?"><span class="crosshair"></span></div><figcaption>sub-metre (undated) — what is this place?</figcaption></figure></div>
-      <p class="links">
-        <a href="https://www.google.com/maps/@14.946282,74.632447,16z/data=!3m1!1e3" target="_blank">
-          high-resolution view (undated)</a>
-      </p>
+      <div class="verdict">
+        <button data-v="true_positive">Real clearing</button>
+        <button data-v="false_positive">Not clearing</button>
+        <button data-v="unclear">Unclear</button>
+        <input type="text"
+               placeholder="note &mdash; e.g. plantation rows, already bare, quarry">
+        <a href="https://www.google.com/maps/@14.946282,74.632447,16z/data=!3m1!1e3"
+           target="_blank">open in maps</a>
+      </div>
     </section>
-    <section>
+    <section data-id="828392510999739a" data-stratum="0.5_to_1ha"
+             data-area="0.608">
       <h2><code>828392510999739a</code>
         <span class="meta">0.61 ha &middot;
         14.80226, 74.78765 &middot;
         first seen 2026-08-04</span></h2>
       <div class="chips"><figure><div class="frame"><img src="828392510999739a-before-2025.png" alt="2025 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2025 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="828392510999739a-after-2026.png" alt="2026 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2026 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="828392510999739a-wayback-after.png" alt="sub-metre (undated) — what is this place?"><span class="crosshair"></span></div><figcaption>sub-metre (undated) — what is this place?</figcaption></figure></div>
-      <p class="links">
-        <a href="https://www.google.com/maps/@14.802257,74.787652,16z/data=!3m1!1e3" target="_blank">
-          high-resolution view (undated)</a>
-      </p>
+      <div class="verdict">
+        <button data-v="true_positive">Real clearing</button>
+        <button data-v="false_positive">Not clearing</button>
+        <button data-v="unclear">Unclear</button>
+        <input type="text"
+               placeholder="note &mdash; e.g. plantation rows, already bare, quarry">
+        <a href="https://www.google.com/maps/@14.802257,74.787652,16z/data=!3m1!1e3"
+           target="_blank">open in maps</a>
+      </div>
     </section>
-    <section>
+    <section data-id="8eee4438c00586fe" data-stratum="1_to_5ha"
+             data-area="1.639">
       <h2><code>8eee4438c00586fe</code>
         <span class="meta">1.64 ha &middot;
         14.90593, 74.73053 &middot;
         first seen 2026-08-04</span></h2>
       <div class="chips"><figure><div class="frame"><img src="8eee4438c00586fe-before-2025.png" alt="2025 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2025 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="8eee4438c00586fe-after-2026.png" alt="2026 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2026 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="8eee4438c00586fe-wayback-after.png" alt="sub-metre (undated) — what is this place?"><span class="crosshair"></span></div><figcaption>sub-metre (undated) — what is this place?</figcaption></figure></div>
-      <p class="links">
-        <a href="https://www.google.com/maps/@14.905932,74.730528,16z/data=!3m1!1e3" target="_blank">
-          high-resolution view (undated)</a>
-      </p>
+      <div class="verdict">
+        <button data-v="true_positive">Real clearing</button>
+        <button data-v="false_positive">Not clearing</button>
+        <button data-v="unclear">Unclear</button>
+        <input type="text"
+               placeholder="note &mdash; e.g. plantation rows, already bare, quarry">
+        <a href="https://www.google.com/maps/@14.905932,74.730528,16z/data=!3m1!1e3"
+           target="_blank">open in maps</a>
+      </div>
     </section>
-    <section>
+    <section data-id="93ab2a6ac93d21b8" data-stratum="0.5_to_1ha"
+             data-area="0.579">
       <h2><code>93ab2a6ac93d21b8</code>
         <span class="meta">0.58 ha &middot;
         14.88081, 74.67081 &middot;
         first seen 2026-08-04</span></h2>
       <div class="chips"><figure><div class="frame"><img src="93ab2a6ac93d21b8-before-2025.png" alt="2025 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2025 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="93ab2a6ac93d21b8-after-2026.png" alt="2026 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2026 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="93ab2a6ac93d21b8-wayback-after.png" alt="sub-metre (undated) — what is this place?"><span class="crosshair"></span></div><figcaption>sub-metre (undated) — what is this place?</figcaption></figure></div>
-      <p class="links">
-        <a href="https://www.google.com/maps/@14.880807,74.670806,16z/data=!3m1!1e3" target="_blank">
-          high-resolution view (undated)</a>
-      </p>
+      <div class="verdict">
+        <button data-v="true_positive">Real clearing</button>
+        <button data-v="false_positive">Not clearing</button>
+        <button data-v="unclear">Unclear</button>
+        <input type="text"
+               placeholder="note &mdash; e.g. plantation rows, already bare, quarry">
+        <a href="https://www.google.com/maps/@14.880807,74.670806,16z/data=!3m1!1e3"
+           target="_blank">open in maps</a>
+      </div>
     </section>
-    <section>
+    <section data-id="b0f3a3b13e55c1e5" data-stratum="0.5_to_1ha"
+             data-area="0.636">
       <h2><code>b0f3a3b13e55c1e5</code>
         <span class="meta">0.64 ha &middot;
         14.94520, 74.69772 &middot;
         first seen 2026-08-04</span></h2>
       <div class="chips"><figure><div class="frame"><img src="b0f3a3b13e55c1e5-before-2025.png" alt="2025 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2025 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="b0f3a3b13e55c1e5-after-2026.png" alt="2026 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2026 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="b0f3a3b13e55c1e5-wayback-after.png" alt="sub-metre (undated) — what is this place?"><span class="crosshair"></span></div><figcaption>sub-metre (undated) — what is this place?</figcaption></figure></div>
-      <p class="links">
-        <a href="https://www.google.com/maps/@14.945199,74.697718,16z/data=!3m1!1e3" target="_blank">
-          high-resolution view (undated)</a>
-      </p>
+      <div class="verdict">
+        <button data-v="true_positive">Real clearing</button>
+        <button data-v="false_positive">Not clearing</button>
+        <button data-v="unclear">Unclear</button>
+        <input type="text"
+               placeholder="note &mdash; e.g. plantation rows, already bare, quarry">
+        <a href="https://www.google.com/maps/@14.945199,74.697718,16z/data=!3m1!1e3"
+           target="_blank">open in maps</a>
+      </div>
     </section>
-    <section>
+    <section data-id="b64eec4c9c681dc0" data-stratum="0.5_to_1ha"
+             data-area="0.742">
       <h2><code>b64eec4c9c681dc0</code>
         <span class="meta">0.74 ha &middot;
         14.94420, 74.63105 &middot;
         first seen 2026-08-04</span></h2>
       <div class="chips"><figure><div class="frame"><img src="b64eec4c9c681dc0-before-2025.png" alt="2025 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2025 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="b64eec4c9c681dc0-after-2026.png" alt="2026 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2026 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="b64eec4c9c681dc0-wayback-after.png" alt="sub-metre (undated) — what is this place?"><span class="crosshair"></span></div><figcaption>sub-metre (undated) — what is this place?</figcaption></figure></div>
-      <p class="links">
-        <a href="https://www.google.com/maps/@14.944196,74.631054,16z/data=!3m1!1e3" target="_blank">
-          high-resolution view (undated)</a>
-      </p>
+      <div class="verdict">
+        <button data-v="true_positive">Real clearing</button>
+        <button data-v="false_positive">Not clearing</button>
+        <button data-v="unclear">Unclear</button>
+        <input type="text"
+               placeholder="note &mdash; e.g. plantation rows, already bare, quarry">
+        <a href="https://www.google.com/maps/@14.944196,74.631054,16z/data=!3m1!1e3"
+           target="_blank">open in maps</a>
+      </div>
     </section>
-    <section>
+    <section data-id="ea0c4f927051404a" data-stratum="0.5_to_1ha"
+             data-area="0.540">
       <h2><code>ea0c4f927051404a</code>
         <span class="meta">0.54 ha &middot;
         14.93166, 74.67860 &middot;
         first seen 2026-08-04</span></h2>
       <div class="chips"><figure><div class="frame"><img src="ea0c4f927051404a-before-2025.png" alt="2025 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2025 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="ea0c4f927051404a-after-2026.png" alt="2026 Sentinel-2 (10 m)"><span class="crosshair"></span></div><figcaption>2026 Sentinel-2 (10 m)</figcaption></figure><figure><div class="frame"><img src="ea0c4f927051404a-wayback-after.png" alt="sub-metre (undated) — what is this place?"><span class="crosshair"></span></div><figcaption>sub-metre (undated) — what is this place?</figcaption></figure></div>
-      <p class="links">
-        <a href="https://www.google.com/maps/@14.931657,74.678601,16z/data=!3m1!1e3" target="_blank">
-          high-resolution view (undated)</a>
-      </p>
+      <div class="verdict">
+        <button data-v="true_positive">Real clearing</button>
+        <button data-v="false_positive">Not clearing</button>
+        <button data-v="unclear">Unclear</button>
+        <input type="text"
+               placeholder="note &mdash; e.g. plantation rows, already bare, quarry">
+        <a href="https://www.google.com/maps/@14.931657,74.678601,16z/data=!3m1!1e3"
+           target="_blank">open in maps</a>
+      </div>
     </section>
+<div id="bar">
+  <span id="count"></span>
+  <button id="save" disabled>Download verdicts CSV</button>
+  <span style="color:#777;font-size:.85rem">
+    Saved in this browser as you go &mdash; refreshing will not lose your work.</span>
+</div>
+<script>
+// Verdicts are recorded here rather than in the spreadsheet because matching
+// thirteen ids across two windows by eye is where transcription errors happen.
+// localStorage means a closed tab does not discard a half-finished review.
+const KEY = "vanachakshu-verdicts";
+const state = JSON.parse(localStorage.getItem(KEY) || "{}");
+
+function refresh() {
+  let done = 0;
+  document.querySelectorAll("section[data-id]").forEach(s => {
+    const rec = state[s.dataset.id];
+    s.querySelectorAll(".verdict button").forEach(b =>
+      b.classList.toggle("on", !!rec && rec.verdict === b.dataset.v));
+    const note = s.querySelector(".verdict input");
+    if (rec && rec.note && note.value !== rec.note) note.value = rec.note;
+    s.classList.toggle("done", !!rec);
+    if (rec) done++;
+  });
+  const total = document.querySelectorAll("section[data-id]").length;
+  document.getElementById("count").textContent = done + " of " + total + " reviewed";
+  document.getElementById("save").disabled = done === 0;
+}
+
+document.querySelectorAll("section[data-id]").forEach(s => {
+  s.querySelectorAll(".verdict button").forEach(b => b.onclick = () => {
+    const cur = state[s.dataset.id] || {};
+    state[s.dataset.id] = {
+      verdict: b.dataset.v, note: cur.note || "",
+      stratum: s.dataset.stratum, area: s.dataset.area
+    };
+    localStorage.setItem(KEY, JSON.stringify(state));
+    refresh();
+  });
+  s.querySelector(".verdict input").oninput = e => {
+    if (!state[s.dataset.id]) return;   // a note without a verdict scores nothing
+    state[s.dataset.id].note = e.target.value;
+    localStorage.setItem(KEY, JSON.stringify(state));
+  };
+});
+
+document.getElementById("save").onclick = () => {
+  const lines = ["alert_id,stratum,area_ha,verdict,note"];
+  for (const [id, r] of Object.entries(state)) {
+    // Quote the note: a comma in free text would otherwise shift every column.
+    lines.push([id, r.stratum, r.area, r.verdict,
+                '"' + String(r.note || "").replace(/"/g, '""') + '"'].join(","));
+  }
+  const blob = new Blob([lines.join("\n") + "\n"], {type: "text/csv"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "verdicts.csv";
+  a.click();
+};
+
+refresh();
+</script>
 </body></html>

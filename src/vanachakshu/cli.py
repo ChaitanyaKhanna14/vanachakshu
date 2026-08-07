@@ -29,6 +29,7 @@ from vanachakshu.validation import (
     precision_report,
     size_stratum,
     stratified_sample,
+    wilson_interval,
     worksheet_alert_ids,
     write_worksheet,
 )
@@ -320,10 +321,26 @@ def validate_report(
     for result in precision_report(records):
         console.print(f"  {result.as_row()}")
 
-    judged = sum(r.judged for r in precision_report(records))
+    results = precision_report(records)
+    judged = sum(r.judged for r in results)
+    correct = sum(r.true_positive for r in results)
+    unclear = sum(r.unclear for r in results)
+
+    low, high = wilson_interval(correct, judged)
     console.print(
-        f"\n[dim]Intervals are 95% Wilson score. Precision on n={judged} is a range,\n"
-        "not a point — quote it with the interval or not at all.[/dim]\n"
+        f"\n[bold]overall[/bold]: precision "
+        f"{correct / judged if judged else 0:.2f} [{low:.2f}-{high:.2f}] "
+        f"on n={judged}" + (f", {unclear} unclear" if unclear else "")
+    )
+    # Pooling across strata is only unbiased when each stratum was sampled in
+    # proportion to the population — or, as here, sampled exhaustively. With a
+    # genuinely stratified sample of a larger population this figure would
+    # over-weight whichever band was oversampled, and the per-band rows above
+    # would be the ones to quote.
+    console.print(
+        "\n[dim]Intervals are 95% Wilson score. Precision on a sample this size is a\n"
+        "range, not a point — quote it with the interval or not at all. The pooled\n"
+        "figure assumes strata were sampled proportionally or exhaustively.[/dim]\n"
     )
 
 

@@ -63,7 +63,36 @@ The infrastructure around the detectors is sound: unattended operation,
 notify-once guarantees, an audit trail, and a verified physics step. The
 detection quality is the open problem.
 
-## Measured accuracy so far
+## Human-validated accuracy
+
+**Precision 0.38, 95% CI [0.18–0.64], n=13** — every detection judged by eye
+against sub-metre imagery, 2025 vs 2026.
+
+| Clearing size | Precision | 95% CI | n |
+|---|---|---|---|
+| 0.5–1 ha | 0.40 | [0.17–0.69] | 10 |
+| 1–5 ha | 0.33 | [0.06–0.79] | 3 |
+| **Pooled** | **0.38** | **[0.18–0.64]** | **13** |
+
+Five of thirteen detections were real clearings. In practical terms, someone
+acting on these alerts would find something at roughly two visits in five.
+
+**The interval is what matters here, not the point estimate.** At n=13 the true
+precision could plausibly be anywhere from 0.18 to 0.64, and that range is
+reported rather than hidden because a single figure from thirteen samples would
+imply a confidence the sample cannot support. The sample grows as the monthly
+monitor accumulates detections.
+
+Two things worth noting about the method. Every detection was judgeable — no
+`unclear` verdicts — so the imagery was adequate for the call. And this figure
+is **independent of Hansen**: it is a human looking at pictures, not one
+algorithm agreeing with another.
+
+Reproduce with `vanachakshu validate-sample --seed 42`, then `validate-chips`,
+then `validate-report`. The seed is in the filename so the same sample can be
+redrawn and audited.
+
+## Measured accuracy against Hansen
 
 **Optical baseline: precision 0.38, recall 0.34** against Hansen v1.13 over Yellapur
 Taluk, 2021 vs 2025, with a 60 m geolocation tolerance.
