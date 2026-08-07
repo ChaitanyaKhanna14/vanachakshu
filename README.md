@@ -36,61 +36,71 @@ optical-only system goes blind exactly when clearing activity peaks.
 | Phase | Scope | State |
 |---|---|---|
 | 0 | Repo, config, CI, Earth Engine access | ✅ complete |
-| 1 | Sentinel-2 optical baseline, scored against Hansen | ✅ complete |
+| 1 | Sentinel-2 optical baseline, scored against Hansen | ✅ complete — superseded |
 | 2 | Scheduled service: cron, alerts, reports | ✅ running unattended |
-| 3 | Sentinel-1 radar detector | 🟡 terrain correction verified; detector not yet usable |
-| 4 | Manual validation against <5 m NICFI imagery | ⬜ **now the blocking item** |
-| 5 | Documentation, runbook, write-up | ⬜ not started |
+| 3 | Sentinel-1 radar detector | 🟡 terrain correction verified (88%); detection accuracy unmeasured |
+| 4 | Human validation against sub-metre imagery | ✅ two rounds, n=13 and n=19 |
+| 5 | AlphaEarth embedding detector | ✅ live — replaced the optical baseline |
+| 6 | Public map, write-up | ⬜ not started |
 
-## Known limitations, stated up front
+## How it detects
 
-**Neither detector currently produces usable output.** Both failures are
-understood and documented rather than hidden.
+The detector compares **AlphaEarth satellite embeddings** — Google's free
+annual dataset where each 10 m pixel carries 64 numbers summarising a whole
+year of fused Sentinel-1 radar and Sentinel-2 optical observation. A pixel that
+changed land cover moves a long way in that space; one that merely had a dry
+year does not.
 
-- **Optical** was tuned on a four-year gap (precision 0.38 / recall 0.34) but the
-  scheduled monitor compares one year to the next, where the same settings detect
-  **0.0 ha**. Re-tuning on the deployed regime is outstanding.
-- **Radar**: the terrain correction is verified (88% of distortion removed), but
-  the change detector's threshold sat inside the noise floor. See
-  [the Phase 3 finding](docs/findings/2026-08-phase3-radar-detector.md).
-- **The reference data cannot currently arbitrate.** Hansen records 10.5 ha of
-  loss in the 366 km² test area — a 0.03% base rate — and is a 30 m annual
-  product that misses sub-hectare and selective clearing. Tuning against a
-  reference that sparse would be fitting noise, which is why Phase 4 validation
-  against <5 m imagery is now the blocking item rather than a polish step.
+This replaced NDVI differencing after measurement showed why NDVI could not
+work here. Hansen records 28.6 ha of loss in 146,300 ha — **one loss pixel per
+five thousand stable ones**. At that base rate, separability is the only lever
+that matters, and NDVI's (Cohen's d = 1.36) is not enough for any threshold to
+find a usable operating point. Embeddings score 2.20.
 
-The infrastructure around the detectors is sound: unattended operation,
-notify-once guarantees, an audit trail, and a verified physics step. The
-detection quality is the open problem.
+Two guards sit on top:
+
+- **Was it forest?** Hansen's forest mask, or every land-cover change qualifies.
+- **Did it get less green?** Embedding distance measures *how far* a pixel
+  moved, not *which way* — so forest growing back looks identical to forest
+  being cleared. NDVI supplies only the sign. Human validation found five of
+  nine false positives were regrowth.
 
 ## Human-validated accuracy
 
-**Precision 0.38, 95% CI [0.18–0.64], n=13** — every detection judged by eye
-against sub-metre imagery, 2025 vs 2026.
+**Precision 0.53, 95% CI [0.32–0.73], n=19** (2 unclear) — every detection
+judged by eye against sub-metre imagery, 2024 vs 2025.
 
-| Clearing size | Precision | 95% CI | n |
+| Detector | Precision | 95% CI | n |
 |---|---|---|---|
-| 0.5–1 ha | 0.40 | [0.17–0.69] | 10 |
-| 1–5 ha | 0.33 | [0.06–0.79] | 3 |
-| **Pooled** | **0.38** | **[0.18–0.64]** | **13** |
+| NDVI differencing | 0.38 | [0.18–0.64] | 13 |
+| **AlphaEarth embeddings** | **0.53** | **[0.32–0.73]** | **19** |
 
-Five of thirteen detections were real clearings. In practical terms, someone
-acting on these alerts would find something at roughly two visits in five.
+The interval matters more than the point estimate. At n=19 the true precision
+could plausibly sit anywhere from 0.32 to 0.73, and that range is reported
+rather than hidden because a single figure from nineteen samples would imply a
+confidence the sample cannot support.
 
-**The interval is what matters here, not the point estimate.** At n=13 the true
-precision could plausibly be anywhere from 0.18 to 0.64, and that range is
-reported rather than hidden because a single figure from thirteen samples would
-imply a confidence the sample cannot support. The sample grows as the monthly
-monitor accumulates detections.
+This figure is **independent of Hansen** — a human looking at pictures, not one
+algorithm agreeing with another. The direction gate was added *after* this
+validation, in response to it, and its measured effect is reported separately.
 
-Two things worth noting about the method. Every detection was judgeable — no
-`unclear` verdicts — so the imagery was adequate for the call. And this figure
-is **independent of Hansen**: it is a human looking at pictures, not one
-algorithm agreeing with another.
+Reproduce with `vanachakshu validate-sample --seed 7`, then `validate-chips`,
+then `validate-report`. The seed is in the filename so the sample can be redrawn
+and audited.
 
-Reproduce with `vanachakshu validate-sample --seed 42`, then `validate-chips`,
-then `validate-report`. The seed is in the filename so the same sample can be
-redrawn and audited.
+## Known limits
+
+**Detections lag by about a year.** AlphaEarth is published annually and the
+newest year appears months after it ends, so today the freshest comparable pair
+is 2024 vs 2025. A system reporting last year's clearing is a record, not an
+alert — the "near-real-time" goal is not met by this detector, and the radar
+path exists partly to address that.
+
+**Accuracy depends on the scale it is scored at.** The median detection is
+0.116 ha, roughly one 30 m pixel, so scoring against Hansen at 30 m discards
+most of the output and flatters precision. Against Hansen the same detector
+scores 0.583 at 30 m and 0.343 at 10 m. Any number from this project should
+state its scale and its reference.
 
 ## Measured accuracy against Hansen
 
