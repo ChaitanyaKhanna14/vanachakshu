@@ -34,6 +34,7 @@ from vanachakshu.validation import (
     worksheet_alert_ids,
     write_worksheet,
 )
+from vanachakshu.webmap import write_page
 
 app = typer.Typer(
     name="vanachakshu",
@@ -354,6 +355,42 @@ def validate_report(
         "\n[dim]Intervals are 95% Wilson score. Precision on a sample this size is a\n"
         "range, not a point — quote it with the interval or not at all. The pooled\n"
         "figure assumes strata were sampled proportionally or exhaustively.[/dim]\n"
+    )
+
+
+@app.command("build-map")
+def build_map(
+    alerts_geojson: Annotated[
+        Path,
+        typer.Option("--alerts", help="Alert GeoJSON to render."),
+    ] = Path("data/output/yellapur-taluk-alerts.geojson"),
+    out: Annotated[
+        Path,
+        typer.Option("--out", help="Where to write the page. docs/ is what GitHub Pages serves."),
+    ] = Path("docs/index.html"),
+) -> None:
+    """Render the alert store as a public map page.
+
+    No Earth Engine call — this reads what the last detection cycle already
+    wrote, so it is safe to run offline and costs no quota.
+    """
+    if not alerts_geojson.is_file():
+        console.print(f"[red]No alert GeoJSON at[/red] {alerts_geojson}")
+        console.print("[dim]Run 'vanachakshu run' first.[/dim]")
+        raise typer.Exit(1)
+
+    written = write_page(
+        alerts_geojson,
+        out,
+        aoi_name=YELLAPUR_TALUK.name,
+        centre=YELLAPUR_TALUK.bbox.centroid,
+    )
+    size_kb = written.stat().st_size / 1024
+    console.print(f"[green]Wrote[/green] {written} [dim]({size_kb:,.0f} kB, self-contained)[/dim]")
+    console.print(
+        "[dim]Publish by enabling GitHub Pages on the docs/ folder. The page states\n"
+        "its own precision AND recall — do not remove the recall figure, or an area\n"
+        "with no marker reads as an area shown to be safe.[/dim]"
     )
 
 

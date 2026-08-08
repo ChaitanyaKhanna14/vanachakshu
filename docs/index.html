@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vanachakshu &mdash; possible forest disturbance, Yellapur Taluk</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --bg: #0f1210; --panel: #191e1b; --ink: #e8ede9; --muted: #9aa8a0;
+    --line: #2b332e; --warn: #f0b429; --alert: #ff6b4a; --ok: #4ade80;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #map { position: absolute; inset: 0; }
+  .panel {
+    position: absolute; top: 12px; left: 12px; z-index: 1000; width: min(340px, calc(100vw - 24px));
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; box-shadow: 0 6px 24px rgba(0,0,0,.45); max-height: calc(100vh - 24px);
+    overflow-y: auto;
+  }
+  .panel h1 { margin: 0 0 2px; font-size: 17px; letter-spacing: -.01em; }
+  .panel .sub { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+  .warn {
+    background: rgba(240,180,41,.1); border-left: 3px solid var(--warn);
+    padding: 8px 10px; border-radius: 4px; font-size: 13px; margin-bottom: 10px;
+  }
+  .stats { display: flex; gap: 14px; margin-bottom: 10px; }
+  .stat b { display: block; font-size: 20px; line-height: 1.1; }
+  .stat span { color: var(--muted); font-size: 11px; text-transform: uppercase;
+    letter-spacing: .04em; }
+  details { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line);
+    padding-top: 8px; }
+  details summary { cursor: pointer; color: var(--ink); font-size: 13px; }
+  details p { margin: 8px 0; }
+  .legend { display: flex; gap: 12px; font-size: 12px; color: var(--muted); margin: 8px 0; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+    margin-right: 4px; vertical-align: middle; }
+  a { color: #7dd3fc; }
+  .leaflet-popup-content-wrapper { background: var(--panel); color: var(--ink);
+    border-radius: 8px; }
+  .leaflet-popup-tip { background: var(--panel); }
+  .leaflet-popup-content { margin: 12px 14px; font-size: 13px; }
+  .leaflet-popup-content h3 { margin: 0 0 6px; font-size: 14px; }
+  .leaflet-popup-content table { border-collapse: collapse; margin: 6px 0; }
+  .leaflet-popup-content td { padding: 1px 10px 1px 0; }
+  .leaflet-popup-content td:first-child { color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="panel">
+  <h1>Vanachakshu</h1>
+  <div class="sub">Possible forest disturbance &middot; Yellapur Taluk</div>
+
+  <div class="warn">
+    <strong>Not evidence of any offence.</strong> These are automated satellite
+    detections that require ground verification. Clearing may be lawful.
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b>57</b><span>detections</span></div>
+    <div class="stat"><b>9.2</b><span>hectares</span></div>
+    <div class="stat"><b>08 Aug 2026</b><span>updated</span></div>
+  </div>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--alert)"></i>confirmed</span>
+    <span><i class="dot" style="background:var(--warn)"></i>awaiting confirmation</span>
+  </div>
+
+  <details open>
+    <summary>How accurate is this?</summary>
+    <p><strong>About 4 in 5 markers are real clearing</strong>
+    (precision 0.80, 95% CI 0.53&ndash;0.97, measured at 10&nbsp;m against Hansen
+    Global Forest Change).</p>
+    <p><strong>About 2 in 3 real clearings are missing.</strong> Recall is 0.32.
+    An area with no marker has <em>not</em> been shown to be undisturbed &mdash;
+    this map cannot be used as evidence that nothing happened.</p>
+    <p>Detections lag by roughly a year: the underlying annual imagery is
+    published months after the year it covers. This is a record, not a
+    real-time alarm.</p>
+  </details>
+
+  <details>
+    <summary>What it is</summary>
+    <p>India has no active near-real-time deforestation alert system. RADD does
+    not cover India; the Forest Survey of India's <em>Anavaran</em> portal
+    stopped updating in November 2025.</p>
+    <p>Built on free data only &mdash; Sentinel-1, Sentinel-2 and AlphaEarth
+    embeddings via Google Earth Engine.
+    <a href="https://github.com/ChaitanyaKhanna14/vanachakshu">Source and
+    method</a>.</p>
+  </details>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const ALERTS = {"type":"FeatureCollection","properties":{"aoi":"Yellapur Taluk","notice":"These are POSSIBLE forest disturbances detected from satellite imagery. They are not confirmed events and are not evidence of any offence. Every location requires ground verification before any action is taken."},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[74.63099637943742,14.944079844825344]},"properties":{"alert_id":"95f11e59338ab270","area_ha":0.887,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.77255577047877,15.051181421667266]},"properties":{"alert_id":"b7bf96bad90c88d3","area_ha":0.453,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.61665755642613,14.810271933333103]},"properties":{"alert_id":"08f5ff8f48992744","area_ha":0.338,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.58198857522767,14.88533515847413]},"properties":{"alert_id":"5329cd466618cebb","area_ha":0.318,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.63369132528976,14.962050428199566]},"properties":{"alert_id":"fc5380b681dbabee","area_ha":0.308,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.82782425804734,14.816748514314849]},"properties":{"alert_id":"3d86a73bf9b62e89","area_ha":0.289,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.65297943774735,14.967957591562396]},"properties":{"alert_id":"451a4ce98fa42ae5","area_ha":0.289,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.60212195959072,15.075319430143384]},"properties":{"alert_id":"224b52d1d58caa16","area_ha":0.289,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.86559269919277,14.84282089046103]},"properties":{"alert_id":"80a32244f80ee8a7","area_ha":0.28,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.87349017384771,14.826571650278856]},"properties":{"alert_id":"6888a59839fdcbd1","area_ha":0.27,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.57237941993162,14.89468433075854]},"properties":{"alert_id":"6cd76c5572a67a3d","area_ha":0.26,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.69711938420797,14.959400981433026]},"properties":{"alert_id":"320642a490f19fd5","area_ha":0.222,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.83298898760941,14.931969699257053]},"properties":{"alert_id":"132b6a4c6be848f9","area_ha":0.212,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.73023455218163,14.906457545188061]},"properties":{"alert_id":"f28b3ab4ec6d9ce0","area_ha":0.202,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.55039183230092,14.926400144495513]},"properties":{"alert_id":"5bd51c1ed0a70076","area_ha":0.202,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.60004300136175,15.07658562692481]},"properties":{"alert_id":"9ccc458b86f328e4","area_ha":0.193,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.77617439581151,15.024873465940692]},"properties":{"alert_id":"6a1379a4a5044a14","area_ha":0.173,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.60094702023497,15.06943190028921]},"properties":{"alert_id":"6426302c012046fb","area_ha":0.173,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.61096592292087,14.80435364797152]},"properties":{"alert_id":"5c5807882e1b25da","area_ha":0.164,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.6352954597257,15.028038102355893]},"properties":{"alert_id":"712f37b03d3cd836","area_ha":0.164,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.83464445434731,14.821451253159378]},"properties":{"alert_id":"c36862c03a04e251","area_ha":0.154,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.6966914594726,14.940467761844825]},"properties":{"alert_id":"a4694b3023a461fc","area_ha":0.154,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.61467527403252,14.960230698095454]},"properties":{"alert_id":"4fbfdcdfb62b8d33","area_ha":0.154,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.86910126203102,14.92013760365765]},"properties":{"alert_id":"fbfd4bba8fa841a8","area_ha":0.145,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.56139120389092,15.14887291524818]},"properties":{"alert_id":"82f1b42fa61e424e","area_ha":0.135,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.71248783467979,15.004813087518206]},"properties":{"alert_id":"bb653d7afb3c1c1d","area_ha":0.125,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.78887657392897,15.09705010463541]},"properties":{"alert_id":"aa2781a4fadfbbf8","area_ha":0.125,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.83375640552357,14.886856305688571]},"properties":{"alert_id":"6438aba6aad4f2a5","area_ha":0.116,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.8398469831499,14.934269386384397]},"properties":{"alert_id":"3defa63ea6ac8b8e","area_ha":0.116,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.69737417908854,14.94486950673701]},"properties":{"alert_id":"1ac2c78d08f4a1a7","area_ha":0.116,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.63705929465658,15.02926722580813]},"properties":{"alert_id":"140000e5cc048eb3","area_ha":0.116,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.89243036736987,14.813212418696452]},"properties":{"alert_id":"42d7e138b5ede029","area_ha":0.106,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.84479969474965,14.974350218105624]},"properties":{"alert_id":"b45d35dd21808a5b","area_ha":0.106,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.63550078893347,15.078882747437055]},"properties":{"alert_id":"5818267a30b6d0e0","area_ha":0.106,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.81589533106019,14.813392081753278]},"properties":{"alert_id":"05eafd924c814a50","area_ha":0.096,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.86641914925417,14.843954763975212]},"properties":{"alert_id":"4af509dc5d4414b6","area_ha":0.096,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.76266373393835,15.022943371387385]},"properties":{"alert_id":"f557b1bad8730633","area_ha":0.096,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.60545855921741,15.057978834111276]},"properties":{"alert_id":"f9a26d149113b66e","area_ha":0.096,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.63188899113241,14.821436994186614]},"properties":{"alert_id":"1267bc35f5a15016","area_ha":0.087,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.80294675789337,14.854547754841434]},"properties":{"alert_id":"beafd6594f3cfa56","area_ha":0.087,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.6656357019725,15.001080088448646]},"properties":{"alert_id":"a1ae301d74595d5e","area_ha":0.087,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.66431617663295,15.016878459912027]},"properties":{"alert_id":"df729b85ffa559c4","area_ha":0.087,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.84072733212834,14.847605061002739]},"properties":{"alert_id":"9951e5adcc75873d","area_ha":0.077,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.86067809793836,14.868875300301534]},"properties":{"alert_id":"7d5987c79e17dec8","area_ha":0.077,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.67001149553428,14.880747761756561]},"properties":{"alert_id":"ef991681ed5bf326","area_ha":0.077,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.69132466730377,15.005631552554851]},"properties":{"alert_id":"eacbce1023a8d221","area_ha":0.077,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.7582260564348,15.012800108522123]},"properties":{"alert_id":"470730af0d390945","area_ha":0.077,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.79234663754076,15.034146646287908]},"properties":{"alert_id":"7af61587525f1476","area_ha":0.077,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.60651087140741,15.068077297876647]},"properties":{"alert_id":"dad600e80709dc77","area_ha":0.077,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.7785125821653,14.811043628939075]},"properties":{"alert_id":"7b82cb97b673d687","area_ha":0.068,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.82012596827921,14.919562967055274]},"properties":{"alert_id":"a8a0f7ca2adb50ac","area_ha":0.067,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.79225423939724,15.017830674113194]},"properties":{"alert_id":"cee25fa2a3d24ee9","area_ha":0.067,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.87542026840103,14.841850709954182]},"properties":{"alert_id":"0a066910b978d024","area_ha":0.058,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.58966617652261,14.874100228654076]},"properties":{"alert_id":"4554261e17d45417","area_ha":0.058,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.69563144743736,15.004841035104823]},"properties":{"alert_id":"6d08db5bbceb3bcb","area_ha":0.058,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.7860840967029,15.032298683417718]},"properties":{"alert_id":"b44bfc8f095b4df8","area_ha":0.058,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[74.77216790964432,15.070867208487613]},"properties":{"alert_id":"9b1afaba01501b6b","area_ha":0.058,"first_seen":"2026-08-07","last_seen":"2026-08-07","confirmations":1,"notified_on":null,"status":"UNCONFIRMED - seen 1 pass, awaiting more"}}]};
+
+const map = L.map('map', { zoomControl: true }).setView([14.975000000000001, 74.725], 11);
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics &middot; Detections from Sentinel-1/2 via Google Earth Engine" }).addTo(map);
+L.control.scale({ imperial: false }).addTo(map);
+
+const confirmed = p => (p.confirmations || 0) > 1;
+
+function popup(p, ll) {
+  const status = confirmed(p) ? 'Confirmed across passes' : 'Awaiting confirmation';
+  // Coordinates to five decimals: about a metre, enough to navigate to and
+  // short enough to read out over a phone.
+  const coords = ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5);
+  return `<h3>Possible disturbance</h3>
+    <table>
+      <tr><td>Area</td><td>${(p.area_ha ?? 0).toFixed(2)} ha</td></tr>
+      <tr><td>Status</td><td>${status}</td></tr>
+      <tr><td>First seen</td><td>${p.first_seen ?? '&mdash;'}</td></tr>
+      <tr><td>Last seen</td><td>${p.last_seen ?? '&mdash;'}</td></tr>
+      <tr><td>Location</td><td>${coords}</td></tr>
+    </table>
+    <a href="https://www.google.com/maps/search/?api=1&query=${ll.lat},${ll.lng}"
+       target="_blank" rel="noopener">Open in Google Maps</a>
+    <p style="color:var(--muted);margin:8px 0 0">Requires ground verification.
+    Clearing may be lawful.</p>`;
+}
+
+const layer = L.geoJSON(ALERTS, {
+  pointToLayer: (f, ll) => L.circleMarker(ll, {
+    // Radius tracks area so a 2 ha clearing does not look like a 0.05 ha one,
+    // with a floor so the smallest detections stay clickable.
+    radius: Math.max(5, Math.min(14, 4 + Math.sqrt(f.properties.area_ha ?? 0) * 6)),
+    color: confirmed(f.properties) ? '#ff6b4a' : '#f0b429',
+    weight: 2, fillOpacity: .25,
+  }),
+  onEachFeature: (f, l) => l.bindPopup(popup(f.properties, l.getLatLng())),
+}).addTo(map);
+
+if (ALERTS.features.length) map.fitBounds(layer.getBounds(), { padding: [60, 60] });
+</script>
+</body>
+</html>

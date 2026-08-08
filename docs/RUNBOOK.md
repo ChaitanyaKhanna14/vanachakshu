@@ -55,6 +55,7 @@ stays fully on.
 
 ```python
 import ssl, socket
+
 ctx = ssl.create_default_context()
 with socket.create_connection(("oauth2.googleapis.com", 443)) as s:
     cert = ctx.wrap_socket(s, server_hostname="oauth2.googleapis.com").getpeercert()
