@@ -67,6 +67,21 @@ An issuer that is not a real CA confirms it. Check `truststore` is installed.
 **Never fix this with `verify=False`.** That accepts any certificate from
 anyone and defeats the point of HTTPS. `tests/test_gee.py` guards against it.
 
+### The `earthengine` CLI still fails after that fix
+
+`use_system_certificates()` only helps code that goes through this package's
+`initialize()`. The CLI, `pip` and anything importing `requests` directly do
+not. Export the OS trust store once and point them at it:
+
+```bash
+python scripts/export_ca_bundle.py     # prints the two commands
+setx REQUESTS_CA_BUNDLE "%USERPROFILE%\.certs\windows-ca-bundle.pem"
+setx SSL_CERT_FILE      "%USERPROFILE%\.certs\windows-ca-bundle.pem"
+```
+
+Restart the terminal afterwards — `setx` affects new processes only. Re-run the
+export if the interceptor is later reinstalled with a fresh root.
+
 ### `git push` fails the same way
 
 Git carries its own CA bundle and needs the same treatment:
