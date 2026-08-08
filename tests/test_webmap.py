@@ -126,21 +126,70 @@ class TestPublishedClaims:
         assert "may be lawful" in popup
 
 
+class TestOnlyPublishWhatTheDetectorStandsBehind:
+    """The alert store outlives the settings that filled it.
+
+    When min_clearing_ha moved 0.05 -> 0.20 — taking measured precision from
+    0.31 to 0.80 — 42 of 57 stored alerts fell below the new floor. Publishing
+    them beside a claim of 0.80 precision overstated accuracy on three quarters
+    of the map. That shipped once; these stop it shipping again.
+    """
+
+    def test_drops_detections_below_the_current_floor(self) -> None:
+        page = build_page(
+            alerts({"area_ha": 0.06}, {"area_ha": 0.19}, {"area_ha": 0.25}),
+            "Yellapur",
+            CENTRE,
+            min_area_ha=0.20,
+        )
+        assert page.count('"type":"Feature"') == 1
+
+    def test_the_count_reflects_what_is_published_not_what_is_stored(self) -> None:
+        page = build_page(
+            alerts({"area_ha": 0.06}, {"area_ha": 0.08}, {"area_ha": 0.9}),
+            "Yellapur",
+            CENTRE,
+            min_area_ha=0.20,
+        )
+        assert ">1<" in page
+        assert ">3<" not in page
+
+    def test_a_detection_exactly_on_the_floor_is_published(self) -> None:
+        """0.20 ha is 20 pixels, which the detector emits — the boundary is inclusive."""
+        page = build_page(alerts({"area_ha": 0.20}), "Yellapur", CENTRE, min_area_ha=0.20)
+        assert page.count('"type":"Feature"') == 1
+
+    def test_write_page_reports_how_many_were_withheld(self, tmp_path: Path) -> None:
+        """Silently dropping most of a map is not something to do without saying so."""
+        src = tmp_path / "alerts.geojson"
+        src.write_text(
+            json.dumps(alerts({"area_ha": 0.06}, {"area_ha": 0.5}, {"area_ha": 0.1})),
+            encoding="utf-8",
+        )
+
+        _, shown, withheld = write_page(
+            src, tmp_path / "index.html", "Yellapur", CENTRE, min_area_ha=0.20
+        )
+
+        assert (shown, withheld) == (1, 2)
+
+
 class TestWritePage:
     def test_writes_and_creates_parent_directories(self, tmp_path: Path) -> None:
         src = tmp_path / "alerts.geojson"
         src.write_text(json.dumps(alerts({"area_ha": 1.0})), encoding="utf-8")
 
-        out = write_page(src, tmp_path / "site" / "index.html", "Yellapur", CENTRE)
+        out, shown, withheld = write_page(src, tmp_path / "site" / "index.html", "Yellapur", CENTRE)
 
         assert out.exists()
         assert out.read_text(encoding="utf-8").startswith("<!doctype html>")
+        assert (shown, withheld) == (1, 0)
 
     def test_page_is_self_contained_apart_from_leaflet_and_tiles(self, tmp_path: Path) -> None:
         """No sibling data file to fall out of sync with the page."""
         src = tmp_path / "alerts.geojson"
         src.write_text(json.dumps(alerts({"area_ha": 1.0})), encoding="utf-8")
-        page = write_page(src, tmp_path / "index.html", "Yellapur", CENTRE).read_text("utf-8")
+        page = write_page(src, tmp_path / "index.html", "Yellapur", CENTRE)[0].read_text("utf-8")
 
         assert "fetch(" not in page
         assert "alerts.geojson" not in page

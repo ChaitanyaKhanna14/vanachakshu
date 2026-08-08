@@ -213,8 +213,40 @@ if (ALERTS.features.length) map.fitBounds(layer.getBounds(), {{ padding: [60, 60
 """
 
 
-def build_page(geojson: dict[str, Any], aoi_name: str, centre: tuple[float, float]) -> str:
-    """Render the alert GeoJSON into one self-contained HTML page."""
+def meeting_current_config(geojson: dict[str, Any], min_area_ha: float) -> dict[str, Any]:
+    """Drop detections the current configuration would no longer produce.
+
+    The alert store accumulates across runs, so it outlives the settings that
+    filled it. When ``min_clearing_ha`` moved from 0.05 to 0.20 — a change that
+    took measured precision from 0.31 to 0.80 — **42 of the 57 stored alerts
+    were below the new floor**. Publishing them beside a claim of 0.80 precision
+    would have overstated accuracy on three quarters of the map.
+
+    Filtering here rather than at write time is deliberate: the store keeps its
+    full history, and the page shows only what today's detector stands behind.
+    """
+    kept = [
+        f
+        for f in geojson.get("features", [])
+        if float(f.get("properties", {}).get("area_ha") or 0.0) >= min_area_ha
+    ]
+    return {**geojson, "features": kept}
+
+
+def build_page(
+    geojson: dict[str, Any],
+    aoi_name: str,
+    centre: tuple[float, float],
+    min_area_ha: float | None = None,
+) -> str:
+    """Render the alert GeoJSON into one self-contained HTML page.
+
+    ``min_area_ha`` filters to what the current configuration would emit. It is
+    optional only so the renderer stays a pure function of its input; callers
+    that publish should always pass it.
+    """
+    if min_area_ha is not None:
+        geojson = meeting_current_config(geojson, min_area_ha)
     features = geojson.get("features", [])
     total_ha = sum(float(f.get("properties", {}).get("area_ha") or 0.0) for f in features)
     lon, lat = centre
@@ -236,10 +268,25 @@ def build_page(geojson: dict[str, Any], aoi_name: str, centre: tuple[float, floa
 
 
 def write_page(
-    geojson_path: Path, out_path: Path, aoi_name: str, centre: tuple[float, float]
-) -> Path:
-    """Read the alert GeoJSON and write the map page beside it."""
+    geojson_path: Path,
+    out_path: Path,
+    aoi_name: str,
+    centre: tuple[float, float],
+    min_area_ha: float | None = None,
+) -> tuple[Path, int, int]:
+    """Read the alert GeoJSON and write the map page.
+
+    Returns the path, how many detections were published, and how many were
+    withheld as below ``min_area_ha`` — the caller reports the second number,
+    because silently dropping three quarters of a map is not something that
+    should happen without saying so.
+    """
     geojson = json.loads(geojson_path.read_text(encoding="utf-8"))
+    stored = len(geojson.get("features", []))
+
+    published = geojson if min_area_ha is None else meeting_current_config(geojson, min_area_ha)
+    shown = len(published["features"])
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(build_page(geojson, aoi_name, centre), encoding="utf-8")
-    return out_path
+    out_path.write_text(build_page(published, aoi_name, centre), encoding="utf-8")
+    return out_path, shown, stored - shown

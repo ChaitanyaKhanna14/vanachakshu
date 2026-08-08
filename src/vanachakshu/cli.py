@@ -19,7 +19,12 @@ from rich.panel import Panel
 from vanachakshu import __version__, embeddings
 from vanachakshu.alerts import AlertStore
 from vanachakshu.chips import download_chips, write_contact_sheet
-from vanachakshu.config import WESTERN_GHATS_CLEAR_SEASON, YELLAPUR_TALUK, AlertConfig
+from vanachakshu.config import (
+    WESTERN_GHATS_CLEAR_SEASON,
+    YELLAPUR_TALUK,
+    AlertConfig,
+    EmbeddingDetectionConfig,
+)
 from vanachakshu.diagnostics import all_passed, run_diagnostics
 from vanachakshu.gee import EarthEngineSetupError, initialize
 from vanachakshu.pipeline import default_comparison_years, run_cycle, store_path_for
@@ -379,14 +384,27 @@ def build_map(
         console.print("[dim]Run 'vanachakshu run' first.[/dim]")
         raise typer.Exit(1)
 
-    written = write_page(
+    cfg = EmbeddingDetectionConfig()
+    written, shown, withheld = write_page(
         alerts_geojson,
         out,
         aoi_name=YELLAPUR_TALUK.name,
         centre=YELLAPUR_TALUK.bbox.centroid,
+        min_area_ha=cfg.min_clearing_ha,
     )
     size_kb = written.stat().st_size / 1024
     console.print(f"[green]Wrote[/green] {written} [dim]({size_kb:,.0f} kB, self-contained)[/dim]")
+    console.print(f"  published {shown} detections")
+
+    if withheld:
+        # The alert store outlives the settings that filled it. Publishing
+        # detections the current detector would not produce, beside the current
+        # detector's precision figure, overstates accuracy.
+        console.print(
+            f"  [yellow]withheld {withheld}[/yellow] below the current "
+            f"{cfg.min_clearing_ha} ha floor [dim](kept in the store, not on the map)[/dim]"
+        )
+
     console.print(
         "[dim]Publish by enabling GitHub Pages on the docs/ folder. The page states\n"
         "its own precision AND recall — do not remove the recall figure, or an area\n"
