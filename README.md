@@ -1,13 +1,20 @@
 # Vanachakshu
 
-**Near-real-time forest disturbance alerts for the Western Ghats, India.**
+**An annual forest-disturbance record for the Western Ghats, India — free,
+open, and measured.**
 
-> ⚠️ **Early development.** Accuracy has been measured — two rounds of human
-> validation against sub-metre imagery, and a parameter sweep at native 10 m —
-> but it is measured on one taluk, in one year-pair, against an imperfect
-> reference. Roughly a fifth of detections are expected to be wrong, and about
-> two thirds of real clearing is missed. Do not treat any output as evidence of
-> illegal activity. See [Responsible use](#responsible-use).
+> ⚠️ **This is a record, not an alert system.** It was built to be
+> near-real-time and it is not. AlphaEarth is published annually and months in
+> arrears, so the freshest comparable pair is 2024 vs 2025 — the system reports
+> last year's clearing. Measurement showed why the gap cannot currently be
+> closed with free data: see
+> [the radar finding](docs/findings/2026-08-phase3-radar-detector.md).
+>
+> Accuracy has been measured — two rounds of human validation against sub-metre
+> imagery, plus a parameter sweep at native 10 m — but on one taluk, one
+> year-pair, against an imperfect reference. Roughly **a fifth of detections are
+> wrong** and **two thirds of real clearing is missed**. Do not treat any output
+> as evidence of illegal activity. See [Responsible use](#responsible-use).
 
 ---
 
@@ -23,17 +30,31 @@ India currently has no active near-real-time deforestation alert system.
   not formally cancelled.
 - Only *Van Agni*, the forest **fire** alert portal, remains operational.
 
-This project ports a published, validated method (Sentinel-1 radar backscatter change
-detection with multi-pass confirmation) to a region that no operational system covers.
+This project set out to port RADD's method — Sentinel-1 backscatter change with
+multi-pass confirmation — to a region no operational system covers. **That did not
+work here**, and the measurement is published rather than buried: radar separability
+in this landscape is below the threshold at which any detector can function
+([finding](docs/findings/2026-08-phase3-radar-detector.md)).
+
+What did work is an annual record built on AlphaEarth embeddings. It does not close
+the near-real-time gap. It does fill the *annual* one, for a region that has neither.
 
 ## What it does
 
-Ingests Sentinel-2 optical and Sentinel-1 radar imagery over a monitored area, detects
-sustained canopy loss, and delivers actionable alerts — location with nearest landmark,
-area in hectares, date window, confidence, and a before/after image chip.
+Compares AlphaEarth satellite embeddings between consecutive years over a monitored
+area, detects canopy loss, and publishes each detection with its location, area in
+hectares, date window, confidence, and a before/after image chip — to a
+[public map](docs/index.html) and by email.
 
-Radar matters because the Western Ghats is under monsoon cloud for months at a time. An
-optical-only system goes blind exactly when clearing activity peaks.
+**On latency.** Radar was meant to deliver sub-annual alerts through the monsoon,
+when optical goes blind. It was measured and it cannot: Sentinel-1 VH separability
+here is Cohen's d = 1.27, below the NDVI baseline (1.36) already shown unusable at
+this base rate. Embeddings reach 2.20 — but only by fusing a full year of radar
+*and* optical, which is exactly what makes them annual.
+
+That trade is the central finding of this project: **the property that makes the
+detector accurate is the property that makes it slow.** No free-data path around it
+has been found.
 
 ## Status
 
@@ -42,7 +63,7 @@ optical-only system goes blind exactly when clearing activity peaks.
 | 0 | Repo, config, CI, Earth Engine access | ✅ complete |
 | 1 | Sentinel-2 optical baseline, scored against Hansen | ✅ complete — superseded |
 | 2 | Scheduled service: cron, alerts, reports | ✅ running unattended |
-| 3 | Sentinel-1 radar detector | 🟡 terrain correction verified (88%); detection accuracy unmeasured |
+| 3 | Sentinel-1 radar detector | ❌ **retired** — separability too low (d=1.27, below NDVI's 1.36) |
 | 4 | Human validation against sub-metre imagery | ✅ two rounds, n=13 and n=19 |
 | 5 | AlphaEarth embedding detector | ✅ live — replaced the optical baseline |
 | 5b | Tuned at native 10 m; [runbook](docs/RUNBOOK.md) | ✅ precision 0.31 → 0.80 |
@@ -173,16 +194,20 @@ Two things that finding establishes:
   Sentinel-2 and 30 m Hansen. Recall nearly quadruples with a 60 m tolerance. Any
   accuracy number from this project must state its tolerance and its reference.
 
-## Target accuracy
+## How this compares to the state of the art
 
 RADD reports 97.6% user's / 95.0% producer's accuracy for disturbances ≥0.2 ha — from a
-funded team, over years, in **flat** humid tropics.
+funded team, over years, in **flat** humid tropics, using radar.
 
-**This project targets 70–85% precision on clearings ≥0.5 ha** from the radar detector,
-and expects worse below that. The Western Ghats is harder: steep terrain distorts radar
-backscatter, clearings are small and fragmented, and 2000–7000 mm of monsoon rain drives
-soil-moisture false positives. Those numbers will be published honestly, stratified by
-clearing size, once Phase 4 validation is done.
+This project set a target of 70–85% precision from a radar detector. **That target was
+abandoned on evidence, not missed quietly.** Radar separability in the Western Ghats is
+Cohen's d = 1.27, below the NDVI baseline already shown unusable here. The terrain is
+steep, clearings are small and fragmented, and 2,000–7,000 mm of monsoon rain drives
+soil-moisture noise that swamps a 0.9 dB signal.
+
+What replaced it reaches **precision 0.80 [0.53–0.97] at recall 0.32**, annually rather
+than in near-real-time. Lower than RADD on both axes, and slower — but covering a region
+RADD does not, on free data, with the numbers published rather than claimed.
 
 Note that Hansen is itself a model, not ground truth. Agreeing with it means agreeing
 with another algorithm — which is why Phase 4 validates against imagery instead.
@@ -296,13 +321,12 @@ All free and openly licensed.
 
 | Source | Use |
 |---|---|
-| Sentinel-1 GRD (IW) | Primary detector — cloud-penetrating radar, 6-day revisit |
-| Sentinel-2 L2A | Optical baseline, before/after chips |
-| [Vollrath et al. 2020 slope correction](https://github.com/ESA-PhiLab/radiometric-slope-correction) | Radiometric terrain correction, Alps-validated |
-| Hansen Global Forest Change v1.13 | Training labels and forest mask |
-| ESA WorldCover 10 m | Land cover mask |
-| NICFI Planet basemaps (<5 m) | Independent manual validation |
-| CHIRPS | Rainfall, for separating drought from degradation |
+| **AlphaEarth Satellite Embeddings v1** | **Primary detector** — 64 bands, 10 m, annual |
+| Sentinel-2 L2A | NDVI direction gate, before/after chips |
+| Hansen Global Forest Change v1.13 | Forest mask and scoring reference |
+| Esri World Imagery + Wayback | Sub-metre imagery for human validation |
+| Sentinel-1 GRD (IW) | *Retired from detection* — separability too low (d=1.27) |
+| [Vollrath et al. 2020 slope correction](https://github.com/ESA-PhiLab/radiometric-slope-correction) | Terrain correction, verified at 88%; kept and reusable |
 
 ## Licence
 

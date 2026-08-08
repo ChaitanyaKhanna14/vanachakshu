@@ -1,5 +1,43 @@
 # Phase 3 finding: terrain correction works, the detector does not yet
 
+> ## ⛔ Resolved 2026-08-09: radar is retired from the detection path
+>
+> The question left open below — *is the detector wrong, or is the reference
+> incomplete?* — was settled by measuring separability directly rather than by
+> building more detector. Full AOI, 2024 vs 2025, VH, terrain-corrected,
+> stratified sample:
+>
+> | window | loss mean drop | stable mean drop | **Cohen's d** |
+> |---|---|---|---|
+> | dry season (Dec–Mar), 12+20 scenes | +0.675 dB | −0.199 dB | **1.18** |
+> | full year, 48+60 scenes | +0.886 dB | −0.011 dB | **1.27** |
+>
+> Against the calibration established on this same AOI — NDVI d = 1.36
+> (unusable: precision 0.012–0.32), AlphaEarth embeddings d = 2.20 (usable:
+> precision 0.80) — **both radar windows fall below the method already proven
+> unusable.**
+>
+> The signal is real and points the right way: cleared pixels drop ~0.9 dB more
+> than stable forest. It is simply swamped by per-pixel spread. At a base rate
+> of one loss pixel per 9,939 stable, that is fatal, and no threshold rescues it.
+>
+> **The obvious objection, and why it does not hold.** This tests a single
+> backscatter threshold, while RADD uses Bayesian time-series updating with
+> multi-pass confirmation. But the test already takes a *median over 12–60
+> scenes*, which suppresses noise more aggressively than 2–3 pass confirmation
+> would. The result is not pessimistic for want of temporal averaging.
+>
+> Note that the dry season scored *worse* than the full year (1.18 vs 1.27) —
+> not because the monsoon helps, but because fewer scenes mean less averaging
+> (stable sd 0.523 against 0.331). The cleaner window loses to the one with four
+> times the data. Temporal depth, not seasonal purity, is what buys separability
+> here — which is the same reason annual embeddings win.
+>
+> **What was kept:** the terrain correction (`sentinel1.py`), which is verified
+> at 88% and is genuinely reusable. **What was dropped:** radar as a detection
+> path, and with it the near-real-time claim. See
+> `scripts/radar_separability.py` to reproduce.
+
 **Date:** 2026-08-05
 **AOI:** central quarter of Yellapur Taluk, 366 km² (reduced to fit Earth Engine's memory ceiling)
 **Sensor:** Sentinel-1 GRD, IW, descending passes only
