@@ -2,8 +2,12 @@
 
 **Near-real-time forest disturbance alerts for the Western Ghats, India.**
 
-> ⚠️ **Early development.** Nothing here is validated yet. Do not treat any output as
-> evidence of illegal activity. See [Responsible use](#responsible-use).
+> ⚠️ **Early development.** Accuracy has been measured — two rounds of human
+> validation against sub-metre imagery, and a parameter sweep at native 10 m —
+> but it is measured on one taluk, in one year-pair, against an imperfect
+> reference. Roughly a fifth of detections are expected to be wrong, and about
+> two thirds of real clearing is missed. Do not treat any output as evidence of
+> illegal activity. See [Responsible use](#responsible-use).
 
 ---
 
@@ -52,10 +56,11 @@ changed land cover moves a long way in that space; one that merely had a dry
 year does not.
 
 This replaced NDVI differencing after measurement showed why NDVI could not
-work here. Hansen records 28.6 ha of loss in 146,300 ha — **one loss pixel per
-five thousand stable ones**. At that base rate, separability is the only lever
-that matters, and NDVI's (Cohen's d = 1.36) is not enough for any threshold to
-find a usable operating point. Embeddings score 2.20.
+work here. Measured at 10 m over the full AOI, Hansen records 10.7 ha of loss in
+106,543 ha of forest — **one loss pixel per ten thousand stable ones**. At that
+base rate, separability is the only lever that matters, and NDVI's (Cohen's
+d = 1.36) is not enough for any threshold to find a usable operating point.
+Embeddings score 2.20.
 
 Two guards sit on top:
 
