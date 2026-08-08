@@ -217,7 +217,7 @@ def run_cycle(
     store.load()
 
     records = fetch_patch_records(aoi, season, baseline_year, recent_year, config)
-    detections = detections_from_patch_records(records, today)
+    detections = detections_from_patch_records(records, today, baseline_year, recent_year)
     new_alerts = store.ingest(detections, today)
 
     if not dry_run:

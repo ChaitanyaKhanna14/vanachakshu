@@ -95,6 +95,12 @@ class Detection:
     lat: float
     area_ha: float
     observed_on: date
+    # The two years of imagery compared. Distinct from observed_on, which is
+    # merely when the job ran — with annual imagery published months in arrears
+    # those differ by more than a year, and conflating them is how the map came
+    # to display "2025 to 2026" for detections made from 2024 and 2025 data.
+    baseline_year: int | None = None
+    recent_year: int | None = None
 
     def __post_init__(self) -> None:
         if self.area_ha <= 0:
@@ -113,16 +119,35 @@ class TrackedAlert:
     last_seen: str
     confirmations: int
     notified_on: str | None = None
+    # Which two years of imagery produced this. Optional because alerts written
+    # before this field existed do not have it, and inventing a value would be
+    # worse than admitting ignorance: the map used to derive the period from
+    # today's date and displayed "2025 to 2026" for detections actually made
+    # from 2024 and 2025 imagery. AlphaEarth publishes annually and months in
+    # arrears, so the current year is never the year that was compared.
+    baseline_year: int | None = None
+    recent_year: int | None = None
 
     @property
     def is_notified(self) -> bool:
         return self.notified_on is not None
+
+    @property
+    def period(self) -> str | None:
+        """The compared years, or None when this alert predates the field."""
+        if self.baseline_year is None or self.recent_year is None:
+            return None
+        return f"{self.baseline_year}\u2013{self.recent_year}"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> TrackedAlert:
+        def year(key: str) -> int | None:
+            value = raw.get(key)
+            return int(value) if value is not None else None
+
         return cls(
             alert_id=str(raw["alert_id"]),
             lon=float(raw["lon"]),
@@ -132,6 +157,8 @@ class TrackedAlert:
             last_seen=str(raw["last_seen"]),
             confirmations=int(raw["confirmations"]),
             notified_on=raw.get("notified_on"),
+            baseline_year=year("baseline_year"),
+            recent_year=year("recent_year"),
         )
 
 
@@ -208,6 +235,8 @@ class AlertStore:
                     first_seen=detection.observed_on.isoformat(),
                     last_seen=detection.observed_on.isoformat(),
                     confirmations=1,
+                    baseline_year=detection.baseline_year,
+                    recent_year=detection.recent_year,
                 )
             else:
                 key = existing.alert_id
@@ -230,6 +259,11 @@ class AlertStore:
                     # Clearings grow. Keep the largest extent seen so the
                     # reported area never shrinks below what was announced.
                     area_ha=max(existing.area_ha, detection.area_ha),
+                    # Advance to the newer imagery this was re-seen in, so the
+                    # published period describes the evidence behind the current
+                    # record rather than the first sighting.
+                    baseline_year=detection.baseline_year or existing.baseline_year,
+                    recent_year=detection.recent_year or existing.recent_year,
                 )
 
             if not merged.is_notified and merged.confirmations >= self.config.min_confirmations:
@@ -267,13 +301,21 @@ class AlertStore:
 
 
 def detections_from_patch_records(
-    records: Sequence[dict[str, Any]], observed_on: date
+    records: Sequence[dict[str, Any]],
+    observed_on: date,
+    baseline_year: int | None = None,
+    recent_year: int | None = None,
 ) -> list[Detection]:
     """Convert Earth Engine patch features into detections.
 
     Kept here rather than in :mod:`vanachakshu.detect` so that the alert
     pipeline can be exercised end-to-end in CI from plain dictionaries, with no
     Earth Engine involved.
+
+    The years are carried through because ``observed_on`` is only when the job
+    ran. With annual imagery published months in arrears the two differ by more
+    than a year, and anything downstream that treats the run date as the data
+    date will misstate how current the detections are.
     """
     detections: list[Detection] = []
     for record in records:
@@ -286,6 +328,8 @@ def detections_from_patch_records(
                 lat=lat,
                 area_ha=float(properties["area_ha"]),
                 observed_on=observed_on,
+                baseline_year=baseline_year,
+                recent_year=recent_year,
             )
         )
     return detections

@@ -385,12 +385,22 @@ def build_map(
         raise typer.Exit(1)
 
     cfg = EmbeddingDetectionConfig()
+    bbox = YELLAPUR_TALUK.bbox
+
     written, shown, withheld = write_page(
         alerts_geojson,
         out,
         aoi_name=YELLAPUR_TALUK.name,
-        centre=YELLAPUR_TALUK.bbox.centroid,
+        centre=bbox.centroid,
         min_area_ha=cfg.min_clearing_ha,
+        # Drawn on the map so blank space outside it reads as "not monitored"
+        # rather than "monitored and clear".
+        bounds={
+            "west": bbox.west,
+            "south": bbox.south,
+            "east": bbox.east,
+            "north": bbox.north,
+        },
     )
     size_kb = written.stat().st_size / 1024
     console.print(f"[green]Wrote[/green] {written} [dim]({size_kb:,.0f} kB, self-contained)[/dim]")
