@@ -143,15 +143,23 @@ def fetch_patch_records(
 ) -> list[dict[str, Any]]:
     """Run detection on Earth Engine and bring back plain GeoJSON features.
 
-    Uses the AlphaEarth embedding detector. Measured against the NDVI detector
-    it replaced, on the same AOI, years, tolerance and scale:
+    Uses the AlphaEarth embedding detector, tuned against a weighted stratified
+    sample over the full AOI at the pipeline's own 10 m, 2024 vs 2025, with the
+    direction gate off:
 
-    ==================  =========  ========  =====
-    Detector            Precision  Recall    F1
-    ==================  =========  ========  =====
-    NDVI drop >= 0.15   0.583      0.013     0.025
-    Embedding L2 >=0.45 0.773      0.129     0.221
-    ==================  =========  ========  =====
+    ====================  =========  ================  ======
+    Detector              Precision  95% CI            Recall
+    ====================  =========  ================  ======
+    NDVI drop >= 0.15     0.583      not measured      0.013
+    Embedding L2, 0.05ha  0.319      [0.154, 0.635]    0.347
+    Embedding L2, 0.20ha  0.803      [0.531, 0.973]    0.320
+    ====================  =========  ================  ======
+
+    An earlier revision of this table claimed precision 0.773 for the embedding
+    detector. That came from a 30 m run, where the median 0.116 ha detection
+    disappears entirely, and is retracted. See
+    :class:`~vanachakshu.config.EmbeddingDetectionConfig` for the full sweep and
+    for why no configuration here may quote precision 1.000.
 
     ``season`` is no longer used for detection — embeddings are annual and
     already seasonally aware — but is kept in the signature because the alert

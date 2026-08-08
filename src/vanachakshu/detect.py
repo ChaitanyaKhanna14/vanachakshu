@@ -74,21 +74,25 @@ def detect_embedding_disturbance(
     land cover moves a long way in that space, and one that merely has a dry
     year does not.
 
-    Measured against the NDVI detector it replaces, same AOI, same years, same
-    tolerance, **both scored at 30 m**:
+    Tuned and measured at the pipeline's own 10 m against a weighted stratified
+    sample over the full AOI, 2024 vs 2025, direction gate off:
 
-    ==================  =========  ========  =====
-    Detector            Precision  Recall    F1
-    ==================  =========  ========  =====
-    NDVI drop >= 0.15   0.583      0.013     0.025
-    Embedding L2 >=0.45 0.773      0.129     0.221
-    ==================  =========  ========  =====
+    ====================  =========  ================  ======
+    Detector              Precision  95% CI            Recall
+    ====================  =========  ================  ======
+    NDVI drop >= 0.15     0.583      not measured      0.013
+    Embedding L2, 0.05ha  0.319      [0.154, 0.635]    0.347
+    Embedding L2, 0.20ha  0.803      [0.531, 0.973]    0.320
+    ====================  =========  ================  ======
 
-    Scored instead at the pipeline's own 10 m, the embedding detector gives
-    precision 0.343 and recall 0.388 — a different balance and a better F1
-    (0.364). See :class:`~vanachakshu.config.EmbeddingDetectionConfig` for why
-    the two disagree; in short, 30 m sampling discards most of what this
-    detector emits, and what survives is disproportionately correct.
+    Earlier revisions of this docstring reported 0.773 and then 0.343 for this
+    detector. Both came from scoring at 30 m, which discards most of what the
+    detector emits — the median detection is 0.116 ha, roughly a single 30 m
+    pixel — and neither is comparable to the pipeline's output. Both retracted.
+
+    Above threshold 0.45 precision cannot be measured at all: no false positive
+    survives into the sample, so every such configuration reports a spurious
+    1.000. See :class:`~vanachakshu.config.EmbeddingDetectionConfig`.
 
     Simplicity is not an accident here: this thresholds a single derived band,
     and it outperformed a 130-feature random forest that could not be made to

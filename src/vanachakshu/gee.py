@@ -32,9 +32,42 @@ __all__ = [
     "healthcheck",
     "initialize",
     "remediation_for",
+    "use_system_certificates",
 ]
 
 _DOCS_HINT: Final = "See the 'Earth Engine access' section of README.md."
+
+
+def use_system_certificates() -> bool:
+    """Trust the operating system's certificate store, not just ``certifi``.
+
+    Returns whether the switch was made.
+
+    Consumer antivirus and corporate proxies commonly intercept HTTPS: they
+    terminate the connection and re-sign it with their own root, which they
+    install into the OS trust store. Python's ``ssl`` module reads that store
+    and is satisfied, but ``requests`` and ``httplib2`` — which is what Earth
+    Engine's client actually uses — ignore it and trust only the CA list
+    bundled inside ``certifi``. The interceptor's root is not in that list, so
+    every call fails with ``CERTIFICATE_VERIFY_FAILED`` on a machine where the
+    browser works perfectly.
+
+    Observed here as ``issuer: AVG Web/Mail Shield``.
+
+    This is **not** a verification bypass. Certificates are still verified, and
+    still rejected if invalid — against the OS trust store instead of a static
+    file. That store is the same one the browser trusts, so this makes Python
+    agree with the rest of the machine rather than lowering the bar.
+
+    Import is optional and failure is silent because CI needs none of this:
+    on a machine with no interception the OS store and ``certifi`` agree.
+    """
+    try:
+        import truststore
+    except ImportError:
+        return False
+    truststore.inject_into_ssl()
+    return True
 
 
 class InitFailureKind(StrEnum):
@@ -254,6 +287,11 @@ def initialize(settings: Settings | None = None) -> None:
        * Anything that needs to test against a different project must do so in a
          fresh process, not merely by calling this again.
     """
+    # Before any network call: on a machine where HTTPS is being intercepted,
+    # every request below fails with a certificate error that reads like a
+    # credentials problem and is not one. See use_system_certificates.
+    use_system_certificates()
+
     if settings is not None:
         resolved = settings
     else:

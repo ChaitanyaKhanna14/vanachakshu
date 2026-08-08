@@ -22,6 +22,12 @@ dependencies = [
     "requests>=2.31",
     # Stitching Wayback map tiles into a chip centred on the detection.
     "pillow>=10.0",
+    # Lets requests/httplib2 verify against the OS certificate store instead of
+    # only certifi's static list. Without it, any machine whose antivirus or
+    # proxy intercepts HTTPS - AVG Web/Mail Shield on the development machine -
+    # fails every Earth Engine call with CERTIFICATE_VERIFY_FAILED while the
+    # browser works fine. Verification stays on; only the trust source changes.
+    "truststore>=0.9",
 ]
 
 [project.optional-dependencies]

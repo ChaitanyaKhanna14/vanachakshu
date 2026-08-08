@@ -18,6 +18,7 @@ from vanachakshu.gee import (
     classify_init_error,
     initialize,
     remediation_for,
+    use_system_certificates,
 )
 
 
@@ -217,3 +218,59 @@ class TestInitializeWithoutConfig:
             initialize()
 
         assert "VANACHAKSHU_EE_PROJECT" in str(exc.value)
+
+
+class TestUseSystemCertificates:
+    """Trusting the OS certificate store instead of only ``certifi``.
+
+    Needed because HTTPS interception - consumer antivirus, corporate proxies -
+    installs a re-signing root into the OS store that ``certifi`` knows nothing
+    about, so Earth Engine fails with CERTIFICATE_VERIFY_FAILED on a machine
+    whose browser works perfectly.
+    """
+
+    def test_reports_whether_the_switch_happened(self) -> None:
+        # truststore is a declared dependency, so this is True in a correct
+        # install. The return value exists so a caller can tell the difference
+        # between "switched" and "not available" rather than guessing.
+        assert use_system_certificates() is True
+
+    def test_is_idempotent(self) -> None:
+        # initialize() calls this on every invocation, and Earth Engine's own
+        # init is process-global and may be called more than once.
+        assert use_system_certificates() is True
+        assert use_system_certificates() is True
+
+    def test_returns_false_rather_than_raising_when_unavailable(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A missing truststore must not break a machine that never needed it.
+
+        CI has no interception, so certifi and the OS store agree there and the
+        import failing should cost nothing.
+        """
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fail_truststore(name: str, *args: object, **kwargs: object) -> object:
+            if name == "truststore":
+                raise ImportError("no truststore")
+            return real_import(name, *args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(builtins, "__import__", fail_truststore)
+        assert use_system_certificates() is False
+
+    def test_verification_stays_enabled(self) -> None:
+        """The fix must change the trust *source*, never disable checking.
+
+        Guards against the tempting wrong fix (``verify=False`` or
+        ``_create_unverified_context``), which would accept any certificate
+        from anyone and silently defeat the point of HTTPS.
+        """
+        import ssl
+
+        use_system_certificates()
+        ctx = ssl.create_default_context()
+        assert ctx.verify_mode == ssl.CERT_REQUIRED
+        assert ctx.check_hostname is True
