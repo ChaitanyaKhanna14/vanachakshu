@@ -45,7 +45,9 @@ optical-only system goes blind exactly when clearing activity peaks.
 | 3 | Sentinel-1 radar detector | 🟡 terrain correction verified (88%); detection accuracy unmeasured |
 | 4 | Human validation against sub-metre imagery | ✅ two rounds, n=13 and n=19 |
 | 5 | AlphaEarth embedding detector | ✅ live — replaced the optical baseline |
-| 6 | Public map, write-up | ⬜ not started |
+| 5b | Tuned at native 10 m; [runbook](docs/RUNBOOK.md) | ✅ precision 0.31 → 0.80 |
+| 6 | Public map | ✅ `vanachakshu build-map` → [docs/index.html](docs/index.html) |
+| 6b | Write-up | ⬜ not started |
 
 ## How it detects
 
@@ -251,6 +253,19 @@ ruff format .           # format
 mypy                    # strict type checking
 ```
 
+Operationally:
+
+```bash
+vanachakshu doctor                  # verify Earth Engine access end to end
+vanachakshu run                     # one detection cycle
+vanachakshu build-map               # render docs/index.html from the alert store
+python scripts/tune_detector.py     # re-measure and re-tune, checkpointed
+```
+
+[**docs/RUNBOOK.md**](docs/RUNBOOK.md) covers every failure that has actually
+happened here and what fixed it — TLS interception, the Earth Engine asset root,
+and the seven separate computation timeouts. Read it before debugging anything.
+
 ## Responsible use
 
 These design rules are binding, not aspirational.
@@ -269,6 +284,11 @@ These design rules are binding, not aspirational.
 4. **Known blind spots are published, not hidden.** Radar layover and shadow zones in
    steep terrain are permanent gaps. The map states where the system cannot see, rather
    than silently reporting no alerts there.
+5. **Recall is published as prominently as precision, and a test enforces it.**
+   "80% accurate" reads as "the map is roughly complete" when in fact about two
+   thirds of real clearing is missing. Without the recall figure beside it, an
+   area with no marker looks like an area shown to be safe — the most harmful
+   thing this project could imply. `tests/test_webmap.py` fails if it is removed.
 
 ## Data sources
 
