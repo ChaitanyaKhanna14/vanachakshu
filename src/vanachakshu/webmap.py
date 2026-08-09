@@ -375,21 +375,67 @@ const FEATURES = CFG.alerts.features;
 const isConfirmed = p => (p.confirmations || 0) > 1;
 const fmtHa = v => (v ?? 0).toFixed(2);
 
-const map = L.map('map', { zoomControl:true });
-const imagery = L.tileLayer(CFG.imagery, { maxZoom:19, attribution:CFG.attribution });
-const topo = L.tileLayer(CFG.topo, { maxZoom:19, attribution:CFG.attribution });
+// Tile requests are what cost frames here, not the fifteen markers. Two full
+// tile grids issue hundreds of HTTPS requests per pan, and every option below
+// exists to reduce that count rather than to make each request faster.
+const TILE_OPTS = {
+  // Leaflet re-requests tiles continuously through a zoom gesture by default.
+  // Waiting for the gesture to settle removes most of those requests, and the
+  // stutter they cause with them.
+  updateWhenZooming:false,
+  // Default 2 loads two rings of off-screen tiles, per layer. One is plenty at
+  // this screen size and cuts roughly half the requests.
+  keepBuffer:1,
+};
+
+const map = L.map('map', {
+  zoomControl:true,
+  // Draw all markers into one canvas instead of one SVG node each. Marginal at
+  // fifteen, but it also removes fifteen elements from hit-testing on hover.
+  preferCanvas:true,
+  // The tile cross-fade composites two full-screen tile grids every frame
+  // while it runs. On integrated graphics that alone can halve the frame rate
+  // during a pan, and it buys nothing but a fade.
+  fadeAnimation:false,
+});
+
+// maxNativeZoom matters more than it looks. Past the depth a tile service
+// actually publishes, Leaflet keeps requesting tiles that do not exist, and
+// those failures retry. Capping it makes Leaflet upscale the deepest real tile
+// instead — visually near-identical, and it ends the request storm at high
+// zoom, which is exactly where this felt worst.
+const imagery = L.tileLayer(CFG.imagery,
+  { ...TILE_OPTS, maxZoom:19, maxNativeZoom:18, attribution:CFG.attribution });
+const topo = L.tileLayer(CFG.topo,
+  { ...TILE_OPTS, maxZoom:19, maxNativeZoom:17, attribution:CFG.attribution });
 // Esri's imagery carries no labels, so a bare pin cannot answer the first
-// question anyone asks of it. Topographic already has names baked in, so the
-// overlay comes off when switching or every name renders twice.
-const labels = L.tileLayer(CFG.labels, { maxZoom:19, opacity:.85 });
+// question anyone asks of it. Reference tiles are cheap to skip mid-pan, so
+// this one waits for the map to settle before loading at all.
+const labels = L.tileLayer(CFG.labels,
+  { ...TILE_OPTS, maxZoom:19, maxNativeZoom:16, opacity:.85, updateWhenIdle:true });
+
 imagery.addTo(map);
 labels.addTo(map);
-L.control.layers({ 'Satellite':imagery, 'Topographic':topo }, null,
-  { position:'topright' }).addTo(map);
-map.on('baselayerchange', e => {
-  if (e.name === 'Topographic') map.removeLayer(labels);
-  else if (!map.hasLayer(labels)) labels.addTo(map);
+L.control.layers({ 'Satellite':imagery, 'Topographic':topo },
+  { 'Place names':labels }, { position:'topright' }).addTo(map);
+
+// Topographic already has names baked in, so leaving the overlay on renders
+// every label twice AND doubles the tile requests for no gain. Turning it off
+// automatically must not overwrite a deliberate choice to hide it, hence the
+// flag: without it, switching basemaps back and forth would silently re-enable
+// labels the user had turned off.
+let labelsWanted = true, programmatic = false;
+function setLabels(on) {
+  programmatic = true;
+  if (on && !map.hasLayer(labels)) labels.addTo(map);
+  if (!on && map.hasLayer(labels)) map.removeLayer(labels);
+  programmatic = false;
+}
+map.on('overlayadd overlayremove', e => {
+  if (!programmatic && e.layer === labels) labelsWanted = map.hasLayer(labels);
 });
+map.on('baselayerchange', e => setLabels(e.name !== 'Topographic' && labelsWanted));
+
 L.control.scale({ imperial:false }).addTo(map);
 
 // Recall is 0.32 and coverage is one taluk, so blank space is ambiguous:

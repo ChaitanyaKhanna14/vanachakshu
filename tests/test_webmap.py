@@ -279,6 +279,51 @@ class TestUsability:
         page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
         assert 'id="n-con"' in page and 'id="n-pen"' in page
 
+
+class TestTileRequestVolume:
+    """What made the page lag was request count, not rendering work.
+
+    Fifteen circle markers cost nothing. Two full tile grids issue hundreds of
+    HTTPS requests per pan, and on a machine whose antivirus intercepts TLS each
+    one carries real overhead. These pin the settings that cut that count, all
+    of which are easy to lose in a later edit and invisible when lost.
+    """
+
+    def test_every_tile_layer_caps_its_native_zoom(self) -> None:
+        """Past the depth a service publishes, Leaflet keeps requesting tiles
+        that do not exist and the failures retry — worst at high zoom, which is
+        exactly where the lag was worst."""
+        page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
+        # The option, not the word — it appears in a comment too.
+        assert page.count("maxNativeZoom:") == page.count("L.tileLayer(")
+
+    def test_does_not_reload_tiles_mid_gesture(self) -> None:
+        page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
+        assert "updateWhenZooming:false" in page
+
+    def test_keeps_only_one_ring_of_offscreen_tiles(self) -> None:
+        """Leaflet's default of 2 loads two rings per layer."""
+        page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
+        assert "keepBuffer:1" in page
+
+    def test_tile_crossfade_is_off(self) -> None:
+        """It composites two full-screen tile grids every frame while running."""
+        page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
+        assert "fadeAnimation:false" in page
+
+    def test_markers_share_one_canvas(self) -> None:
+        page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
+        assert "preferCanvas:true" in page
+
+    def test_hiding_place_names_is_not_undone_by_switching_basemap(self) -> None:
+        """The overlay is removed automatically for Topographic, which already
+        has names. Without the guard, switching back would silently re-enable
+        labels the user had deliberately turned off — and re-double the tile
+        requests they turned them off to avoid."""
+        page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
+        assert "labelsWanted" in page
+        assert "programmatic" in page
+
     def test_every_alert_carries_an_id_for_linking(self) -> None:
         cfg = config_of(build_page(alerts({"area_ha": 1.0}), "Y", CENTRE))
         assert cfg["alerts"]["features"][0]["properties"]["alert_id"]
