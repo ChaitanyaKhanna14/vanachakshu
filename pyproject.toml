@@ -60,6 +60,13 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
+[tool.ruff.lint.per-file-ignores]
+# webmap.py holds the published page as one HTML template. Tile-service URLs and
+# the inline SVG favicon are single unbreakable tokens - a data: URI cannot carry
+# a newline - so the line-length rule cannot be satisfied without corrupting
+# them. Every other rule still applies to this file.
+"src/vanachakshu/webmap.py" = ["E501"]
+
 [tool.mypy]
 # Deliberately NOT pinning python_version. mypy then targets whichever
 # interpreter it runs under, which is what the CI matrix needs.

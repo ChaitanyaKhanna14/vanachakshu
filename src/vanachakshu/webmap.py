@@ -17,6 +17,10 @@ Four things follow from it directly:
   monitored at all". Drawing the boundary separates the third from the others.
 * **A download.** A forest officer wants coordinates in their GPS, not in a
   browser tab.
+* **Every marker legible.** Pending detections were once drawn as faint
+  hollow rings. Every alert is pending until a second pass confirms it, so
+  that styling made the entire map nearly invisible. Status is now carried
+  by a halo on the confirmed ones instead of by fading the rest.
 
 **Why not PMTiles.** The plan specified precomputed vector tiles. At this scale
 that is engineering for a size that does not exist: the whole dataset inlines at
@@ -147,140 +151,149 @@ _TEMPLATE = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vanachakshu &mdash; possible forest disturbance</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23166534'/%3E%3Ccircle cx='16' cy='16' r='5.5' fill='%23f8fafc'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root {
-    --bg:#0d100e; --panel:#161b18; --raised:#1e2521; --ink:#e9efea; --muted:#93a29a;
-    --line:#2a332e; --accent:#4ade80; --warn:#f5b638; --alert:#ff6a45; --focus:#7dd3fc;
-    --pad:16px;
+    --paper:#ffffff; --sunk:#f4f6f4; --line:#e2e6e2; --line-soft:#eef1ee;
+    --ink:#14181a; --ink-2:#3d4a44; --muted:#66736c;
+    --brand:#166534; --brand-soft:#eaf3ed;
+    --confirmed:#be123c; --pending:#c2660a; --focus:#1d4ed8;
+    --pad:18px;
   }
   * { box-sizing:border-box; }
-  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink);
-    font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  html,body { margin:0; height:100%; background:var(--paper); color:var(--ink);
+    font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
     -webkit-font-smoothing:antialiased; }
-  button,select,input { font:inherit; color:inherit; }
+  button,select { font:inherit; color:inherit; }
 
   .app { display:flex; height:100%; }
-  .sidebar { width:380px; flex:none; background:var(--panel); border-right:1px solid var(--line);
-    display:flex; flex-direction:column; min-height:0; }
+  .sidebar { width:392px; flex:none; background:var(--paper);
+    border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
   .mapwrap { flex:1; position:relative; min-width:0; }
-  #map { position:absolute; inset:0; background:#0a0c0b; }
+  #map { position:absolute; inset:0; background:#0f1613; }
 
-  .head { padding:var(--pad); border-bottom:1px solid var(--line); }
-  .head h1 { margin:0; font-size:19px; letter-spacing:-.02em; display:flex;
-    align-items:center; gap:8px; }
+  .head { padding:var(--pad) var(--pad) 14px; }
+  .head h1 { margin:0; font-size:21px; font-weight:650; letter-spacing:-.025em;
+    display:flex; align-items:center; gap:9px; }
   .head h1 svg { flex:none; }
-  .head .sub { color:var(--muted); font-size:13px; margin-top:2px; }
+  .head .sub { color:var(--muted); font-size:13px; margin-top:3px; }
 
-  .warn { margin:var(--pad) var(--pad) 0; background:rgba(245,182,56,.09);
-    border-left:3px solid var(--warn); padding:9px 11px; border-radius:0 6px 6px 0;
-    font-size:12.5px; line-height:1.45; }
+  .warn { margin:0 var(--pad); background:#fff8ed; border:1px solid #f6dfbc;
+    border-radius:8px; padding:10px 12px; font-size:12.5px; line-height:1.5;
+    color:#7a4c07; }
+  .warn strong { color:#653f05; }
 
-  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin:var(--pad);
-    background:var(--line); border:1px solid var(--line); border-radius:8px;
-    overflow:hidden; }
-  .stat { background:var(--raised); padding:9px 11px; }
-  .stat b { display:block; font-size:19px; line-height:1.15; font-variant-numeric:tabular-nums; }
-  .stat span { color:var(--muted); font-size:10.5px; text-transform:uppercase;
-    letter-spacing:.05em; }
+  .figures { display:flex; gap:26px; padding:16px var(--pad) 4px; }
+  .fig b { display:block; font-size:30px; font-weight:640; line-height:1;
+    letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+  .fig span { display:block; color:var(--muted); font-size:11px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.07em; margin-top:5px; }
+  .period { padding:8px var(--pad) 0; color:var(--muted); font-size:12px; }
 
-  .controls { padding:0 var(--pad) 10px; display:flex; gap:8px; align-items:center; }
-  .seg { display:flex; background:var(--raised); border:1px solid var(--line);
-    border-radius:7px; overflow:hidden; flex:1; }
-  .seg button { flex:1; background:none; border:0; padding:6px 4px; font-size:12px;
-    color:var(--muted); cursor:pointer; }
-  .seg button[aria-pressed="true"] { background:var(--line); color:var(--ink); }
-  select { background:var(--raised); border:1px solid var(--line); border-radius:7px;
-    padding:6px 8px; font-size:12px; cursor:pointer; }
+  .controls { padding:14px var(--pad); display:flex; gap:8px; align-items:center; }
+  .seg { display:flex; background:var(--sunk); border-radius:8px; padding:3px; flex:1;
+    gap:2px; }
+  .seg button { flex:1; background:none; border:0; padding:6px 2px; font-size:12px;
+    font-weight:550; color:var(--muted); cursor:pointer; border-radius:6px;
+    white-space:nowrap; }
+  .seg button:hover { color:var(--ink); }
+  .seg button[aria-pressed="true"] { background:var(--paper); color:var(--ink);
+    box-shadow:0 1px 2px rgba(0,0,0,.09); }
+  .seg button .n { opacity:.55; font-variant-numeric:tabular-nums; }
+  select { background:var(--paper); border:1px solid var(--line); border-radius:8px;
+    padding:7px 8px; font-size:12px; cursor:pointer; color:var(--ink-2); }
+
+  .key { display:flex; flex-wrap:wrap; gap:6px 16px; padding:0 var(--pad) 14px;
+    font-size:11.5px; color:var(--muted); }
+  .key span { display:flex; align-items:center; gap:6px; }
+  .key i { width:11px; height:11px; border-radius:50%; flex:none;
+    border:1.5px solid var(--paper); box-shadow:0 0 0 1px rgba(0,0,0,.18); }
+  .key .ring { box-shadow:0 0 0 1px rgba(0,0,0,.18), 0 0 0 3.5px rgba(190,18,60,.32); }
+  .key .box { width:14px; height:9px; border-radius:2px; border:1.5px dashed #16a34a;
+    background:none; box-shadow:none; }
 
   .listwrap { flex:1; overflow-y:auto; min-height:0; border-top:1px solid var(--line); }
-  .row { display:flex; gap:10px; align-items:flex-start; width:100%; text-align:left;
-    background:none; border:0; border-bottom:1px solid var(--line); padding:10px var(--pad);
-    cursor:pointer; }
-  .row:hover { background:var(--raised); }
-  .row[aria-current="true"] { background:var(--raised); box-shadow:inset 3px 0 0 var(--focus); }
+  .row { display:flex; gap:11px; align-items:flex-start; width:100%; text-align:left;
+    background:none; border:0; border-bottom:1px solid var(--line-soft);
+    padding:11px var(--pad); cursor:pointer; }
+  .row:hover { background:var(--sunk); }
+  .row[aria-current="true"] { background:var(--brand-soft);
+    box-shadow:inset 3px 0 0 var(--brand); }
   .row:focus-visible { outline:2px solid var(--focus); outline-offset:-2px; }
-  .pip { flex:none; width:11px; height:11px; border-radius:50%; margin-top:5px; }
-  .pip.c { background:var(--alert); border:2px solid var(--alert); }
-  .pip.u { background:transparent; border:2px dashed var(--warn); }
-  .row .main { flex:1; min-width:0; }
-  .row .ha { font-variant-numeric:tabular-nums; font-weight:600; }
-  .row .meta { color:var(--muted); font-size:11.5px; font-variant-numeric:tabular-nums;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .row .tag { font-size:10px; text-transform:uppercase; letter-spacing:.05em;
-    color:var(--muted); }
-  .empty { padding:var(--pad); color:var(--muted); font-size:13px; }
+  .pip { flex:none; width:11px; height:11px; border-radius:50%; margin-top:5px;
+    box-shadow:0 0 0 1px rgba(0,0,0,.15); }
+  .pip.c { background:var(--confirmed);
+    box-shadow:0 0 0 1px rgba(0,0,0,.15), 0 0 0 3.5px rgba(190,18,60,.28); }
+  .pip.u { background:var(--pending); }
+  .main { flex:1; min-width:0; }
+  .top { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+  .ha { font-variant-numeric:tabular-nums; font-weight:620; font-size:14.5px; }
+  .badge { font-size:10px; font-weight:650; text-transform:uppercase;
+    letter-spacing:.05em; padding:2px 6px; border-radius:20px; white-space:nowrap; }
+  .badge.c { background:#fee7ec; color:var(--confirmed); }
+  .badge.u { background:#fdf0e0; color:var(--pending); }
+  .meta { display:block; color:var(--muted); font-size:11.5px; margin-top:2px;
+    font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; }
+  .empty { padding:22px var(--pad); color:var(--muted); font-size:13px; line-height:1.6; }
 
-  .foot { border-top:1px solid var(--line); padding:10px var(--pad) var(--pad); }
-  .dl { width:100%; background:var(--raised); border:1px solid var(--line); color:var(--ink);
-    border-radius:7px; padding:9px; cursor:pointer; font-size:13px; margin-bottom:10px; }
-  .dl:hover { border-color:var(--accent); color:var(--accent); }
-  details { font-size:12.5px; color:var(--muted); border-top:1px solid var(--line);
-    padding-top:9px; margin-top:9px; }
-  details:first-of-type { border-top:0; margin-top:0; }
-  summary { cursor:pointer; color:var(--ink); font-size:12.5px; }
-  details p { margin:8px 0; }
-  a { color:var(--focus); }
-
-  .legend { position:absolute; bottom:26px; left:12px; z-index:500; background:rgba(13,16,14,.86);
-    backdrop-filter:blur(6px); border:1px solid var(--line); border-radius:8px;
-    padding:9px 11px; font-size:11.5px; color:var(--muted); }
-  .legend div { display:flex; align-items:center; gap:7px; margin:3px 0; }
-  .legend i { width:11px; height:11px; border-radius:50%; flex:none; }
-  .legend .box { width:13px; height:9px; border:1.5px dashed var(--accent); border-radius:2px; }
+  .foot { border-top:1px solid var(--line); padding:14px var(--pad) var(--pad);
+    background:var(--sunk); }
+  .dl { width:100%; background:var(--paper); border:1px solid var(--line);
+    border-radius:8px; padding:10px; cursor:pointer; font-size:13px; font-weight:550;
+    margin-bottom:12px; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+  .dl:hover { border-color:var(--brand); color:var(--brand); }
+  details { font-size:12.5px; color:var(--ink-2); border-top:1px solid var(--line);
+    padding-top:10px; margin-top:10px; }
+  details:first-of-type { border-top:0; margin-top:0; padding-top:0; }
+  summary { cursor:pointer; color:var(--ink); font-size:12.5px; font-weight:600; }
+  details p { margin:9px 0; line-height:1.55; }
+  a { color:var(--brand); }
 
   .toggle { display:none; }
 
-  .leaflet-popup-content-wrapper { background:var(--panel); color:var(--ink); border-radius:9px;
-    border:1px solid var(--line); }
-  .leaflet-popup-tip { background:var(--panel); }
-  .leaflet-popup-content { margin:13px 15px; font-size:13px; }
-  .leaflet-popup-content h3 { margin:0 0 7px; font-size:14px; }
-  .leaflet-popup-content table { border-collapse:collapse; margin:7px 0; }
-  .leaflet-popup-content td { padding:1.5px 12px 1.5px 0; }
+  .leaflet-popup-content-wrapper { background:var(--paper); color:var(--ink);
+    border-radius:10px; box-shadow:0 4px 20px rgba(0,0,0,.3); }
+  .leaflet-popup-content { margin:14px 16px; font-size:13px; }
+  .leaflet-popup-content h3 { margin:0 0 8px; font-size:14px; font-weight:640; }
+  .leaflet-popup-content table { border-collapse:collapse; margin:8px 0; }
+  .leaflet-popup-content td { padding:2px 14px 2px 0; }
   .leaflet-popup-content td:first-child { color:var(--muted); }
-  .leaflet-popup-content .cav { color:var(--muted); margin:9px 0 0; font-size:11.5px; }
-  .leaflet-container a.leaflet-popup-close-button { color:var(--muted); }
-  .leaflet-control-attribution { background:rgba(13,16,14,.8)!important;
-    color:var(--muted)!important; }
-  .leaflet-control-attribution a { color:var(--muted)!important; }
+  .leaflet-popup-content .cav { color:var(--muted); margin:10px 0 0; font-size:11.5px;
+    line-height:1.45; }
+  .leaflet-control-attribution { font-size:10px!important; }
 
-  @media (max-width:820px) {
+  @media (max-width:860px) {
     .app { flex-direction:column; }
     .sidebar { width:100%; border-right:0; border-top:1px solid var(--line);
-      order:2; max-height:52vh; }
-    .mapwrap { order:1; flex:1 1 48vh; min-height:220px; }
-    .sidebar[data-collapsed="true"] .stats,
+      order:2; max-height:56vh; }
+    .mapwrap { order:1; flex:1 1 44vh; min-height:210px; }
+    .sidebar[data-collapsed="true"] .figures,
+    .sidebar[data-collapsed="true"] .period,
     .sidebar[data-collapsed="true"] .controls,
+    .sidebar[data-collapsed="true"] .key,
     .sidebar[data-collapsed="true"] .listwrap,
     .sidebar[data-collapsed="true"] .foot,
     .sidebar[data-collapsed="true"] .warn { display:none; }
-    .toggle { display:block; background:var(--raised); border:1px solid var(--line);
-      border-radius:7px; padding:4px 10px; font-size:12px; cursor:pointer; }
-    .head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
-    .legend { display:none; }
+    .toggle { display:block; background:var(--paper); border:1px solid var(--line);
+      border-radius:8px; padding:5px 11px; font-size:12px; cursor:pointer; }
+    .head { display:flex; align-items:flex-start; justify-content:space-between;
+      gap:12px; padding-bottom:12px; }
   }
 </style>
 </head>
 <body>
 <div class="app">
-  <div class="mapwrap">
-    <div id="map"></div>
-    <div class="legend">
-      <div><i style="background:var(--alert);border:2px solid var(--alert)"></i>
-        confirmed across passes</div>
-      <div><i style="border:2px dashed var(--warn)"></i>awaiting confirmation</div>
-      <div><span class="box"></span>monitored area</div>
-    </div>
-  </div>
+  <div class="mapwrap"><div id="map"></div></div>
 
   <aside class="sidebar" id="sidebar">
     <div class="head">
       <div>
         <h1>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" stroke="#4ade80" stroke-width="2"/>
-            <circle cx="12" cy="12" r="3.2" fill="#4ade80"/>
+          <svg width="19" height="19" viewBox="0 0 32 32" aria-hidden="true">
+            <circle cx="16" cy="16" r="14" fill="none" stroke="#166534" stroke-width="2.5"/>
+            <circle cx="16" cy="16" r="5.5" fill="#166534"/>
           </svg>
           Vanachakshu
         </h1>
@@ -294,29 +307,37 @@ _TEMPLATE = """<!doctype html>
       requiring ground verification. Clearing may be lawful.
     </div>
 
-    <div class="stats">
-      <div class="stat"><b id="s-count">0</b><span>detections</span></div>
-      <div class="stat"><b id="s-area">0</b><span>hectares</span></div>
-      <div class="stat"><b id="s-period">&mdash;</b><span id="s-period-label">compared</span></div>
+    <div class="figures">
+      <div class="fig"><b id="s-count">0</b><span>detections</span></div>
+      <div class="fig"><b id="s-area">0</b><span>hectares</span></div>
     </div>
+    <div class="period" id="s-period"></div>
 
     <div class="controls">
       <div class="seg" role="group" aria-label="Filter by status">
-        <button data-filter="all" aria-pressed="true">All</button>
-        <button data-filter="confirmed" aria-pressed="false">Confirmed</button>
-        <button data-filter="unconfirmed" aria-pressed="false">Pending</button>
+        <button data-filter="all" aria-pressed="true">All
+          <span class="n" id="n-all"></span></button>
+        <button data-filter="confirmed" aria-pressed="false">Confirmed
+          <span class="n" id="n-con"></span></button>
+        <button data-filter="unconfirmed" aria-pressed="false">Pending
+          <span class="n" id="n-pen"></span></button>
       </div>
       <select id="sort" aria-label="Sort detections">
         <option value="area-desc">Largest</option>
         <option value="area-asc">Smallest</option>
-        <option value="date-desc">Newest</option>
       </select>
+    </div>
+
+    <div class="key">
+      <span><i class="ring" style="background:#be123c"></i>confirmed</span>
+      <span><i style="background:#c2660a"></i>awaiting confirmation</span>
+      <span><i class="box"></i>monitored area</span>
     </div>
 
     <div class="listwrap"><div id="list"></div></div>
 
     <div class="foot">
-      <button class="dl" id="download">&darr; Download GeoJSON</button>
+      <button class="dl" id="download">&darr;&nbsp; Download GeoJSON</button>
 
       <details open>
         <summary>How accurate is this?</summary>
@@ -354,22 +375,28 @@ const FEATURES = CFG.alerts.features;
 const isConfirmed = p => (p.confirmations || 0) > 1;
 const fmtHa = v => (v ?? 0).toFixed(2);
 
-const map = L.map('map', { zoomControl:true, attributionControl:true });
+const map = L.map('map', { zoomControl:true });
 const imagery = L.tileLayer(CFG.imagery, { maxZoom:19, attribution:CFG.attribution });
 const topo = L.tileLayer(CFG.topo, { maxZoom:19, attribution:CFG.attribution });
+// Esri's imagery carries no labels, so a bare pin cannot answer the first
+// question anyone asks of it. Topographic already has names baked in, so the
+// overlay comes off when switching or every name renders twice.
+const labels = L.tileLayer(CFG.labels, { maxZoom:19, opacity:.85 });
 imagery.addTo(map);
-// Place names on their own layer: Esri's imagery carries none, and a pin with
-// no nearby name cannot answer the first question anyone asks of it.
-L.tileLayer(CFG.labels, { maxZoom:19, opacity:.9 }).addTo(map);
+labels.addTo(map);
 L.control.layers({ 'Satellite':imagery, 'Topographic':topo }, null,
   { position:'topright' }).addTo(map);
+map.on('baselayerchange', e => {
+  if (e.name === 'Topographic') map.removeLayer(labels);
+  else if (!map.hasLayer(labels)) labels.addTo(map);
+});
 L.control.scale({ imperial:false }).addTo(map);
 
 // Recall is 0.32 and coverage is one taluk, so blank space is ambiguous:
 // nothing found, or never looked at. Drawing the boundary separates the two.
 const aoi = L.rectangle(
   [[CFG.bounds.south, CFG.bounds.west],[CFG.bounds.north, CFG.bounds.east]],
-  { color:'#4ade80', weight:1.5, dashArray:'6 5', fill:false, interactive:false }
+  { color:'#16a34a', weight:1.5, dashArray:'6 5', fill:false, interactive:false }
 ).addTo(map);
 
 function popupHtml(p, ll) {
@@ -389,18 +416,29 @@ function popupHtml(p, ll) {
 }
 
 const markers = new Map();
+const rings = new Map();
+const ringLayer = L.layerGroup().addTo(map);
+
 const layer = L.geoJSON(CFG.alerts, {
   pointToLayer: (f, ll) => {
     const p = f.properties, c = isConfirmed(p);
-    // Confirmed and pending differ by FILL and DASH, not only by hue: about 8%
-    // of men cannot separate the orange from the red reliably.
+    const r = Math.max(6, Math.min(15, 5 + Math.sqrt(p.area_ha ?? 0) * 7));
+    // Every detection is solid and legible. An earlier version drew pending as
+    // a faint hollow ring, and since every alert in the store is pending until
+    // a second pass sees it, that made 100% of the map nearly invisible.
     const m = L.circleMarker(ll, {
-      radius: Math.max(6, Math.min(15, 5 + Math.sqrt(p.area_ha ?? 0) * 7)),
-      color: c ? '#ff6a45' : '#f5b638',
-      weight: 2,
-      dashArray: c ? null : '3 3',
-      fillOpacity: c ? .5 : .08,
+      radius:r, color:'#ffffff', weight:2,
+      fillColor: c ? '#be123c' : '#c2660a', fillOpacity:.9,
     });
+    // Status carried by a separate halo rather than by fading the marker, so it
+    // survives greyscale printing and red-green colour blindness.
+    if (c) {
+      const ring = L.circleMarker(ll, {
+        radius:r + 4, color:'#be123c', weight:2, opacity:.75, fill:false,
+      });
+      rings.set(p.alert_id, ring);
+      ringLayer.addLayer(ring);
+    }
     markers.set(p.alert_id, m);
     return m;
   },
@@ -425,15 +463,16 @@ function select(id, fly = true) {
   }
   document.querySelectorAll('.row').forEach(r =>
     r.setAttribute('aria-current', String(r.dataset.id === id)));
-  // A shareable link to one detection. Without it the only way to point someone
-  // at a specific marker is to describe where it is.
-  history.replaceState(null, '', '#' + id);
+  // A shareable link to one detection. Guarded because replaceState throws a
+  // SecurityError on file:// in some browsers, which would break the whole
+  // handler when previewing the page locally.
+  try { history.replaceState(null, '', '#' + id); } catch (e) { /* file:// */ }
 }
 
 let filter = 'all', sort = 'area-desc';
 
 function visible() {
-  let out = FEATURES.filter(f => {
+  const out = FEATURES.filter(f => {
     if (filter === 'confirmed') return isConfirmed(f.properties);
     if (filter === 'unconfirmed') return !isConfirmed(f.properties);
     return true;
@@ -441,8 +480,6 @@ function visible() {
   const key = {
     'area-desc': (a,b) => (b.properties.area_ha||0) - (a.properties.area_ha||0),
     'area-asc':  (a,b) => (a.properties.area_ha||0) - (b.properties.area_ha||0),
-    'date-desc': (a,b) => String(b.properties.last_seen||'').localeCompare(
-                          String(a.properties.last_seen||'')),
   }[sort];
   return out.sort(key);
 }
@@ -450,24 +487,36 @@ function visible() {
 function render() {
   const rows = visible();
   const list = document.getElementById('list');
+  const nCon = FEATURES.filter(f => isConfirmed(f.properties)).length;
 
   document.getElementById('s-count').textContent = rows.length;
   document.getElementById('s-area').textContent =
     rows.reduce((t,f) => t + (f.properties.area_ha||0), 0).toFixed(1);
-  // When the detections do not record which years they compared, show the
-  // build date and say so. A plausible-looking wrong year is worse than an
+  // Counts on the filter itself, so an empty result is explained before it is
+  // clicked rather than after.
+  document.getElementById('n-all').textContent = FEATURES.length;
+  document.getElementById('n-con').textContent = nCon;
+  document.getElementById('n-pen').textContent = FEATURES.length - nCon;
+
+  // When the detections do not record which years they compared, say when the
+  // page was built instead. A plausible-looking wrong year is worse than an
   // obviously different fact, because nobody checks a wrong year.
-  document.getElementById('s-period').textContent = CFG.period || CFG.built.split(' ')[1];
-  document.getElementById('s-period-label').textContent =
-    CFG.period ? 'imagery years' : 'page built';
+  document.getElementById('s-period').textContent = CFG.period
+    ? 'Imagery compared: ' + CFG.period
+    : 'Imagery years not recorded for these detections \u00b7 page built ' + CFG.built;
   document.getElementById('sub').textContent =
-    'Possible forest disturbance \\u00b7 ' + CFG.aoiName;
+    'Possible forest disturbance \u00b7 ' + CFG.aoiName;
   document.getElementById('built').textContent = 'Page built ' + CFG.built + '.';
+  document.title = 'Vanachakshu \u2014 ' + CFG.aoiName;
 
   if (!rows.length) {
-    list.innerHTML = '<div class="empty">No detections match this filter. '
-      + 'That is a normal result &mdash; recorded loss here is about 10 ha a year '
-      + 'across 106,000 ha of forest.</div>';
+    list.innerHTML = '<div class="empty"><strong>Nothing matches this filter.</strong><br>'
+      + (filter === 'confirmed'
+          ? 'A detection becomes confirmed once a second pass sees it again. '
+            + 'None have reached that yet.'
+          : 'Recorded loss here is about 10 ha a year across 106,000 ha of forest, '
+            + 'so an empty result is a normal outcome.')
+      + '</div>';
     return;
   }
 
@@ -479,13 +528,16 @@ function render() {
     row.className = 'row';
     row.dataset.id = p.alert_id;
     row.setAttribute('aria-current', String(p.alert_id === selected));
+    // Spans throughout: a <button> may only contain phrasing content, and the
+    // earlier <div> inside it was invalid markup that assistive tech mishandles.
     row.innerHTML =
       '<span class="pip ' + (c ? 'c' : 'u') + '"></span>'
       + '<span class="main">'
-      + '<span class="ha">' + fmtHa(p.area_ha) + ' ha</span> '
-      + '<span class="tag">' + (c ? 'confirmed' : 'pending') + '</span>'
-      + '<div class="meta">' + lat.toFixed(4) + ', ' + lon.toFixed(4)
-      + ' \\u00b7 ' + (p.last_seen || 'undated') + '</div>'
+      + '<span class="top"><span class="ha">' + fmtHa(p.area_ha) + ' ha</span>'
+      + '<span class="badge ' + (c ? 'c' : 'u') + '">'
+      + (c ? 'confirmed' : 'pending') + '</span></span>'
+      + '<span class="meta">' + lat.toFixed(4) + ', ' + lon.toFixed(4)
+      + ' \u00b7 ' + (p.last_seen || 'undated') + '</span>'
       + '</span>';
     row.addEventListener('click', () => select(p.alert_id));
     list.appendChild(row);

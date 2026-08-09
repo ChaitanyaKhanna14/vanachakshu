@@ -12,6 +12,7 @@ out of the markup. Scraping would pass on a page whose script never runs.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -103,9 +104,11 @@ class TestComparedPeriod:
         cfg = config_of(build_page(alerts({"area_ha": 1.0}), "Y", CENTRE))
         assert cfg["period"] is None
 
-    def test_the_page_relabels_the_tile_when_unknown(self) -> None:
+    def test_the_page_says_so_rather_than_showing_a_bare_date(self) -> None:
+        """An earlier build printed the month alone — the tile read 'Aug'."""
         page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
-        assert "'imagery years' : 'page built'" in page.replace("\n", " ").replace("  ", " ")
+        assert "Imagery years not recorded" in page
+        assert "Imagery compared: " in page
 
     def test_partial_years_are_not_used(self) -> None:
         """Half a pair is not a period."""
@@ -225,10 +228,56 @@ class TestUsability:
         assert "geojson" in page and "Blob" in page
 
     def test_status_differs_by_more_than_colour(self) -> None:
-        """Roughly 8% of men cannot separate the amber from the red reliably."""
+        """Roughly 8% of men cannot separate the amber from the crimson reliably.
+
+        Confirmed detections carry an extra halo, which survives greyscale and
+        colour blindness in a way hue alone does not.
+        """
         page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
-        assert "dashArray" in page
-        assert "dashed" in page
+        assert "rings.set" in page
+        assert "radius:r + 4" in page
+
+    def test_no_detection_is_drawn_faintly(self) -> None:
+        """Every alert is pending until a second pass confirms it.
+
+        An earlier build drew pending as a hollow ring at 8% fill, so with every
+        stored alert unconfirmed the entire map read as empty. Markers are now
+        solid regardless of status; only the halo distinguishes them.
+        """
+        page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
+        marker = page.split("pointToLayer:")[1].split("onEachFeature")[0]
+
+        opacities = [float(v) for v in re.findall(r"fillOpacity:\.?(\d*\.?\d+)", marker)]
+        assert opacities, "no fillOpacity found — check the marker style"
+        assert min(opacities) >= 0.5
+
+    def test_place_labels_come_off_the_topographic_basemap(self) -> None:
+        """Topographic already has names baked in; leaving the overlay on
+        renders every label twice, offset."""
+        page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
+        assert "baselayerchange" in page
+        assert "removeLayer(labels)" in page
+
+    def test_selection_survives_being_opened_from_a_file(self) -> None:
+        """history.replaceState throws a SecurityError on file:// in some
+        browsers, which would break the whole click handler when previewing."""
+        page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
+        assert "try { history.replaceState" in page
+
+    def test_list_rows_contain_only_phrasing_content(self) -> None:
+        """A <button> may not contain a <div>; screen readers mishandle it."""
+        page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
+        row = page.split("row.innerHTML =")[1].split("row.addEventListener")[0]
+        assert "<div" not in row
+
+    def test_has_a_favicon(self) -> None:
+        page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
+        assert 'rel="icon"' in page
+
+    def test_filter_buttons_carry_their_counts(self) -> None:
+        """So an empty result is explained before it is clicked, not after."""
+        page = build_page(alerts({"area_ha": 1.0}), "Y", CENTRE)
+        assert 'id="n-con"' in page and 'id="n-pen"' in page
 
     def test_every_alert_carries_an_id_for_linking(self) -> None:
         cfg = config_of(build_page(alerts({"area_ha": 1.0}), "Y", CENTRE))
