@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-08-07",
+  "updated": "2026-09-01",
   "alerts": [
     {
       "alert_id": "05eafd924c814a50",
@@ -10,7 +10,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "08f5ff8f48992744",
@@ -18,9 +20,11 @@
       "lat": 14.810271933333103,
       "area_ha": 0.33761596799064697,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-08-07",
-      "confirmations": 1,
-      "notified_on": null
+      "last_seen": "2026-09-01",
+      "confirmations": 2,
+      "notified_on": "2026-09-01",
+      "baseline_year": 2024,
+      "recent_year": 2025
     },
     {
       "alert_id": "0a066910b978d024",
@@ -30,7 +34,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "1267bc35f5a15016",
@@ -40,17 +46,21 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "132b6a4c6be848f9",
       "lon": 74.83298898760941,
       "lat": 14.931969699257053,
-      "area_ha": 0.21209612608078574,
+      "area_ha": 0.21209612608149495,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-08-07",
-      "confirmations": 1,
-      "notified_on": null
+      "last_seen": "2026-09-01",
+      "confirmations": 2,
+      "notified_on": "2026-09-01",
+      "baseline_year": 2024,
+      "recent_year": 2025
     },
     {
       "alert_id": "140000e5cc048eb3",
@@ -60,7 +70,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "1ac2c78d08f4a1a7",
@@ -70,7 +82,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "224b52d1d58caa16",
@@ -80,7 +94,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "320642a490f19fd5",
@@ -88,9 +104,11 @@
       "lat": 14.959400981433026,
       "area_ha": 0.22170848617119324,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-08-07",
-      "confirmations": 1,
-      "notified_on": null
+      "last_seen": "2026-09-01",
+      "confirmations": 2,
+      "notified_on": "2026-09-01",
+      "baseline_year": 2024,
+      "recent_year": 2025
     },
     {
       "alert_id": "3d86a73bf9b62e89",
@@ -100,7 +118,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "3defa63ea6ac8b8e",
@@ -110,7 +130,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "42d7e138b5ede029",
@@ -120,7 +142,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "451a4ce98fa42ae5",
@@ -128,9 +152,11 @@
       "lat": 14.967957591562396,
       "area_ha": 0.2891721295228341,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-08-07",
-      "confirmations": 1,
-      "notified_on": null
+      "last_seen": "2026-09-01",
+      "confirmations": 2,
+      "notified_on": "2026-09-01",
+      "baseline_year": 2024,
+      "recent_year": 2025
     },
     {
       "alert_id": "4554261e17d45417",
@@ -140,7 +166,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "470730af0d390945",
@@ -150,7 +178,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "4af509dc5d4414b6",
@@ -160,7 +190,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "4fbfdcdfb62b8d33",
@@ -170,7 +202,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "5329cd466618cebb",
@@ -178,9 +212,11 @@
       "lat": 14.88533515847413,
       "area_ha": 0.31821311528259555,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-08-07",
-      "confirmations": 1,
-      "notified_on": null
+      "last_seen": "2026-09-01",
+      "confirmations": 2,
+      "notified_on": "2026-09-01",
+      "baseline_year": 2024,
+      "recent_year": 2025
     },
     {
       "alert_id": "5818267a30b6d0e0",
@@ -190,7 +226,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "5bd51c1ed0a70076",
@@ -200,7 +238,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "5c5807882e1b25da",
@@ -210,7 +250,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "6426302c012046fb",
@@ -220,7 +262,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "6438aba6aad4f2a5",
@@ -230,7 +274,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "6888a59839fdcbd1",
@@ -240,7 +286,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "6a1379a4a5044a14",
@@ -250,7 +298,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "6cd76c5572a67a3d",
@@ -258,9 +308,11 @@
       "lat": 14.89468433075854,
       "area_ha": 0.26034500516122333,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-08-07",
-      "confirmations": 1,
-      "notified_on": null
+      "last_seen": "2026-09-01",
+      "confirmations": 2,
+      "notified_on": "2026-09-01",
+      "baseline_year": 2024,
+      "recent_year": 2025
     },
     {
       "alert_id": "6d08db5bbceb3bcb",
@@ -270,7 +322,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "712f37b03d3cd836",
@@ -280,7 +334,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "7af61587525f1476",
@@ -290,7 +346,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "7b82cb97b673d687",
@@ -300,7 +358,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "7d5987c79e17dec8",
@@ -310,7 +370,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "80a32244f80ee8a7",
@@ -318,9 +380,11 @@
       "lat": 14.84282089046103,
       "area_ha": 0.27969615385329566,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-08-07",
-      "confirmations": 1,
-      "notified_on": null
+      "last_seen": "2026-09-01",
+      "confirmations": 2,
+      "notified_on": "2026-09-01",
+      "baseline_year": 2024,
+      "recent_year": 2025
     },
     {
       "alert_id": "82f1b42fa61e424e",
@@ -330,7 +394,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "95f11e59338ab270",
@@ -338,9 +404,11 @@
       "lat": 14.944079844825344,
       "area_ha": 0.8868973815068348,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-08-07",
-      "confirmations": 1,
-      "notified_on": null
+      "last_seen": "2026-09-01",
+      "confirmations": 2,
+      "notified_on": "2026-09-01",
+      "baseline_year": 2024,
+      "recent_year": 2025
     },
     {
       "alert_id": "9951e5adcc75873d",
@@ -350,7 +418,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "9b1afaba01501b6b",
@@ -360,7 +430,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "9ccc458b86f328e4",
@@ -370,7 +442,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "a1ae301d74595d5e",
@@ -380,7 +454,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "a4694b3023a461fc",
@@ -390,7 +466,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "a8a0f7ca2adb50ac",
@@ -400,7 +478,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "aa2781a4fadfbbf8",
@@ -410,7 +490,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "b44bfc8f095b4df8",
@@ -420,7 +502,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "b45d35dd21808a5b",
@@ -430,7 +514,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "b7bf96bad90c88d3",
@@ -438,9 +524,11 @@
       "lat": 15.051181421667266,
       "area_ha": 0.45286205170247595,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-08-07",
-      "confirmations": 1,
-      "notified_on": null
+      "last_seen": "2026-09-01",
+      "confirmations": 2,
+      "notified_on": "2026-09-01",
+      "baseline_year": 2024,
+      "recent_year": 2025
     },
     {
       "alert_id": "bb653d7afb3c1c1d",
@@ -450,7 +538,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "beafd6594f3cfa56",
@@ -460,7 +550,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "c36862c03a04e251",
@@ -470,7 +562,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "cee25fa2a3d24ee9",
@@ -480,7 +574,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "dad600e80709dc77",
@@ -490,7 +586,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "df729b85ffa559c4",
@@ -500,7 +598,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "eacbce1023a8d221",
@@ -510,7 +610,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "ef991681ed5bf326",
@@ -520,7 +622,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "f28b3ab4ec6d9ce0",
@@ -528,9 +632,11 @@
       "lat": 14.906457545188061,
       "area_ha": 0.20248037587702633,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-08-07",
-      "confirmations": 1,
-      "notified_on": null
+      "last_seen": "2026-09-01",
+      "confirmations": 2,
+      "notified_on": "2026-09-01",
+      "baseline_year": 2024,
+      "recent_year": 2025
     },
     {
       "alert_id": "f557b1bad8730633",
@@ -540,7 +646,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "f9a26d149113b66e",
@@ -550,7 +658,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "fbfd4bba8fa841a8",
@@ -560,7 +670,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     },
     {
       "alert_id": "fc5380b681dbabee",
@@ -570,7 +682,9 @@
       "first_seen": "2026-08-07",
       "last_seen": "2026-08-07",
       "confirmations": 1,
-      "notified_on": null
+      "notified_on": null,
+      "baseline_year": null,
+      "recent_year": null
     }
   ]
 }
