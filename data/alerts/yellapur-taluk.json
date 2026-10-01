@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-09-01",
+  "updated": "2026-10-01",
   "alerts": [
     {
       "alert_id": "05eafd924c814a50",
@@ -20,8 +20,8 @@
       "lat": 14.810271933333103,
       "area_ha": 0.33761596799064697,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-09-01",
-      "confirmations": 2,
+      "last_seen": "2026-10-01",
+      "confirmations": 3,
       "notified_on": "2026-09-01",
       "baseline_year": 2024,
       "recent_year": 2025
@@ -56,8 +56,8 @@
       "lat": 14.931969699257053,
       "area_ha": 0.21209612608149495,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-09-01",
-      "confirmations": 2,
+      "last_seen": "2026-10-01",
+      "confirmations": 3,
       "notified_on": "2026-09-01",
       "baseline_year": 2024,
       "recent_year": 2025
@@ -104,8 +104,8 @@
       "lat": 14.959400981433026,
       "area_ha": 0.22170848617119324,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-09-01",
-      "confirmations": 2,
+      "last_seen": "2026-10-01",
+      "confirmations": 3,
       "notified_on": "2026-09-01",
       "baseline_year": 2024,
       "recent_year": 2025
@@ -152,8 +152,8 @@
       "lat": 14.967957591562396,
       "area_ha": 0.2891721295228341,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-09-01",
-      "confirmations": 2,
+      "last_seen": "2026-10-01",
+      "confirmations": 3,
       "notified_on": "2026-09-01",
       "baseline_year": 2024,
       "recent_year": 2025
@@ -212,8 +212,8 @@
       "lat": 14.88533515847413,
       "area_ha": 0.31821311528259555,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-09-01",
-      "confirmations": 2,
+      "last_seen": "2026-10-01",
+      "confirmations": 3,
       "notified_on": "2026-09-01",
       "baseline_year": 2024,
       "recent_year": 2025
@@ -308,8 +308,8 @@
       "lat": 14.89468433075854,
       "area_ha": 0.26034500516122333,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-09-01",
-      "confirmations": 2,
+      "last_seen": "2026-10-01",
+      "confirmations": 3,
       "notified_on": "2026-09-01",
       "baseline_year": 2024,
       "recent_year": 2025
@@ -380,8 +380,8 @@
       "lat": 14.84282089046103,
       "area_ha": 0.27969615385329566,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-09-01",
-      "confirmations": 2,
+      "last_seen": "2026-10-01",
+      "confirmations": 3,
       "notified_on": "2026-09-01",
       "baseline_year": 2024,
       "recent_year": 2025
@@ -404,8 +404,8 @@
       "lat": 14.944079844825344,
       "area_ha": 0.8868973815068348,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-09-01",
-      "confirmations": 2,
+      "last_seen": "2026-10-01",
+      "confirmations": 3,
       "notified_on": "2026-09-01",
       "baseline_year": 2024,
       "recent_year": 2025
@@ -524,8 +524,8 @@
       "lat": 15.051181421667266,
       "area_ha": 0.45286205170247595,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-09-01",
-      "confirmations": 2,
+      "last_seen": "2026-10-01",
+      "confirmations": 3,
       "notified_on": "2026-09-01",
       "baseline_year": 2024,
       "recent_year": 2025
@@ -632,8 +632,8 @@
       "lat": 14.906457545188061,
       "area_ha": 0.20248037587702633,
       "first_seen": "2026-08-07",
-      "last_seen": "2026-09-01",
-      "confirmations": 2,
+      "last_seen": "2026-10-01",
+      "confirmations": 3,
       "notified_on": "2026-09-01",
       "baseline_year": 2024,
       "recent_year": 2025
